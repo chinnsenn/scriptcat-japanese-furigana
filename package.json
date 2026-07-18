@@ -1,15 +1,20 @@
 {
   "name": "scriptcat-japanese-furigana",
-  "version": "0.2.1",
+  "version": "1.0.0",
   "private": true,
   "description": "为日语网页中的汉字添加上下文相关读音的 ScriptCat 用户脚本",
+  "license": "MIT",
+  "homepage": "https://github.com/chinnsenn/scriptcat-japanese-furigana",
+  "repository": "github:chinnsenn/scriptcat-japanese-furigana",
+  "bugs": "https://github.com/chinnsenn/scriptcat-japanese-furigana/issues",
   "scripts": {
     "build": "node scripts/build.cjs",
     "test": "node --test work/*.test.cjs",
     "check": "npm run build && node --check outputs/japanese-furigana.user.js && npm test"
   },
   "devDependencies": {
-    "esbuild": "0.25.6"
+    "esbuild": "0.25.6",
+    "jsdom": "26.1.0"
   },
   "engines": {
     "node": ">=18"

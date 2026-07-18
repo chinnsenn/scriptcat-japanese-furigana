@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 ../text.js 的汉字与日语识别算法、浏览器 document/window 和选择器配置
- * [OUTPUT]: 对外提供 collect、apply(groups, analyses)、remove、isJapanesePage 四个页面标注接口
- * [POS]: page 的页面标注 Adapter，隐藏可见性判断、TreeWalker 分组、区间映射、ruby 变更与恢复细节
+ * [INPUT]: 依赖 ../text.js 的汉字与日语识别算法、浏览器 DOM、采集范围与选择器配置
+ * [OUTPUT]: 对外提供三范围 collect、跨节点 apply、保留节点身份的 remove 与 isJapanesePage
+ * [POS]: page 的页面标注 Adapter，隐藏可见性、范围解析、区间映射、连续 ruby 与可逆 DOM 变更
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -9,10 +9,17 @@
 
 const { hasKanji, isJapaneseText } = require("../text");
 
+const COLLECTION_SCOPES = Object.freeze({
+  selection: "selection",
+  main: "main",
+  page: "page",
+});
+
 function createDomAdapter({
   document,
   window,
   blockSelector,
+  mainSelector,
   skipSelector,
   rubyAttribute,
 }) {
@@ -22,6 +29,7 @@ function createDomAdapter({
     return (
       style.display !== "none" &&
       style.visibility !== "hidden" &&
+      style.contentVisibility !== "hidden" &&
       element.getClientRects().length > 0
     );
   }
@@ -30,12 +38,27 @@ function createDomAdapter({
     const parent = node.parentElement;
     if (!parent || !node.data.trim()) return false;
     if (parent.closest(skipSelector)) return false;
-    if (parent.closest(`[${rubyAttribute}]`)) return false;
+    if (parent.closest("ruby")) return false;
     return isElementVisible(parent);
   }
 
-  function collect(root = document.body) {
+  function collect(options = {}) {
+    const normalized = normalizeCollectOptions(options);
+    const scope = normalized.scope || COLLECTION_SCOPES.page;
+    const selectionRanges = scope === COLLECTION_SCOPES.selection
+      ? readSelectionRanges(window)
+      : [];
+    if (scope === COLLECTION_SCOPES.selection && selectionRanges.length === 0) {
+      return [];
+    }
+    const root = resolveCollectionRoot(
+      document,
+      scope,
+      normalized.root,
+      mainSelector,
+    );
     if (!root) return [];
+
     const walker = document.createTreeWalker(
       root,
       document.defaultView.NodeFilter.SHOW_TEXT,
@@ -43,47 +66,68 @@ function createDomAdapter({
     const groups = new Map();
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       if (!isEligibleTextNode(node)) continue;
+      const bounds = selectedBounds(node, selectionRanges);
+      if (!bounds || bounds.start === bounds.end) continue;
       const owner = node.parentElement.closest(blockSelector) || node.parentElement;
-      const nodes = groups.get(owner) || [];
-      nodes.push(node);
-      groups.set(owner, nodes);
+      const segments = groups.get(owner) || [];
+      segments.push({ node, start: bounds.start, end: bounds.end });
+      groups.set(owner, segments);
     }
     return Array.from(groups.values())
-      .map((nodes) => ({ nodes, text: nodes.map((node) => node.data).join("") }))
+      .map((segments) => ({
+        segments,
+        text: segments
+          .map(({ node, start, end }) => node.data.slice(start, end))
+          .join(""),
+      }))
       .filter((group) => hasKanji(group.text));
   }
 
-  function createRuby(base, reading) {
+  function createRuby(nodes, reading) {
     const ruby = document.createElement("ruby");
     const rb = document.createElement("rb");
     const rt = document.createElement("rt");
     ruby.setAttribute(rubyAttribute, "");
     ruby.title = reading;
-    rb.textContent = base;
+    rb.append(...nodes);
     rt.textContent = reading;
     ruby.append(rb, rt);
     return ruby;
   }
 
   function apply(groups, analyses) {
-    const operations = groups.flatMap((group, index) =>
-      mapAnnotationsToNodes(group.nodes, analyses[index] || []),
-    );
-    const byNode = groupOperationsByNode(operations);
     let annotations = 0;
     let characters = 0;
-    for (const [node, entries] of byNode) {
-      entries.sort((left, right) => right.start - left.start);
+    for (let index = 0; index < groups.length; index += 1) {
+      const entries = [...(analyses[index] || [])].sort(
+        (left, right) => right.start - left.start,
+      );
       for (const entry of entries) {
-        if (!canApply(node, entry)) continue;
-        node.splitText(entry.end);
-        const target = node.splitText(entry.start);
-        target.replaceWith(createRuby(entry.base, entry.reading));
+        const selectedNodes = isolateAnnotation(groups[index], entry);
+        if (!selectedNodes || !wrapSelectedNodes(selectedNodes, entry.reading)) {
+          continue;
+        }
         annotations += 1;
         characters += Array.from(entry.base).filter(hasKanji).length;
       }
     }
     return { annotations, characters };
+  }
+
+  function wrapSelectedNodes(selectedNodes, reading) {
+    const common = lowestCommonAncestor(selectedNodes);
+    if (!common) return false;
+    const first = childUnder(common, selectedNodes[0]);
+    const last = childUnder(common, selectedNodes.at(-1));
+    if (!first || !last || first.parentNode !== last.parentNode) return false;
+    const siblings = siblingsBetween(first, last);
+    const expected = selectedNodes.map((node) => node.data).join("");
+    const actual = siblings.map((node) => node.textContent || "").join("");
+    if (actual !== expected) return false;
+    const ruby = createRuby([], reading);
+    first.before(ruby);
+    ruby.querySelector("rb").append(...siblings);
+    return true;
   }
 
   function remove() {
@@ -92,7 +136,9 @@ function createDomAdapter({
     for (const ruby of rubies) {
       const rb = Array.from(ruby.children).find((child) => child.tagName === "RB");
       const parent = ruby.parentNode;
-      ruby.replaceWith(document.createTextNode(rb ? rb.textContent : ""));
+      const restored = document.createDocumentFragment();
+      while (rb && rb.firstChild) restored.append(rb.firstChild);
+      ruby.replaceWith(restored);
       if (parent) parents.add(parent);
     }
     for (const parent of parents) parent.normalize();
@@ -101,15 +147,8 @@ function createDomAdapter({
 
   function sampleVisibleText(limit = 6_000) {
     if (!document.body) return "";
-    const walker = document.createTreeWalker(
-      document.body,
-      document.defaultView.NodeFilter.SHOW_TEXT,
-    );
-    let output = "";
-    for (let node = walker.nextNode(); node && output.length < limit; node = walker.nextNode()) {
-      if (isEligibleTextNode(node)) output += node.data;
-    }
-    return output.slice(0, limit);
+    const groups = collect({ scope: COLLECTION_SCOPES.page });
+    return groups.map((group) => group.text).join("").slice(0, limit);
   }
 
   function isJapanesePage() {
@@ -124,56 +163,120 @@ function createDomAdapter({
   return Object.freeze({ apply, collect, isJapanesePage, remove });
 }
 
-function mapAnnotationsToNodes(nodes, annotations) {
-  const ranges = createNodeRanges(nodes);
-  const operations = [];
-  for (const annotation of annotations) {
-    const range = ranges.find(
-      (candidate) =>
-        annotation.start >= candidate.start && annotation.end <= candidate.end,
-    );
-    if (!range) continue;
-    operations.push({
-      node: range.node,
-      start: annotation.start - range.start,
-      end: annotation.end - range.start,
-      base: annotation.base,
-      reading: annotation.reading,
-    });
-  }
-  return operations;
+function normalizeCollectOptions(options) {
+  if (!options) return {};
+  if (typeof options === "string") return { scope: options };
+  if (options.nodeType) return { root: options };
+  return options;
 }
 
-function createNodeRanges(nodes) {
-  const ranges = [];
+function resolveCollectionRoot(document, scope, explicitRoot, mainSelector) {
+  if (scope === COLLECTION_SCOPES.main) {
+    const main = document.querySelector(mainSelector) || document.body;
+    if (!main) return null;
+    if (!explicitRoot) return main;
+    return main === explicitRoot || main.contains(explicitRoot) ? explicitRoot : null;
+  }
+  return explicitRoot || document.body;
+}
+
+function readSelectionRanges(window) {
+  const selection = window.getSelection && window.getSelection();
+  if (!selection || selection.isCollapsed) return [];
+  return Array.from({ length: selection.rangeCount }, (_, index) =>
+    selection.getRangeAt(index),
+  ).filter((range) => !range.collapsed);
+}
+
+function selectedBounds(node, ranges) {
+  if (ranges.length === 0) return { start: 0, end: node.data.length };
+  for (const range of ranges) {
+    if (!rangeIntersectsNode(range, node)) continue;
+    const start = range.startContainer === node ? range.startOffset : 0;
+    const end = range.endContainer === node ? range.endOffset : node.data.length;
+    return {
+      start: Math.max(0, Math.min(start, node.data.length)),
+      end: Math.max(0, Math.min(end, node.data.length)),
+    };
+  }
+  return null;
+}
+
+function rangeIntersectsNode(range, node) {
+  try {
+    return range.intersectsNode(node);
+  } catch {
+    return false;
+  }
+}
+
+function isolateAnnotation(group, annotation) {
+  if (
+    !annotation ||
+    annotation.start < 0 ||
+    annotation.start >= annotation.end ||
+    annotation.end > group.text.length ||
+    group.text.slice(annotation.start, annotation.end) !== annotation.base
+  ) {
+    return null;
+  }
+  const parts = annotationParts(group.segments, annotation);
+  if (parts.length === 0) return null;
+  const currentText = parts
+    .map(({ node, start, end }) => node.data.slice(start, end))
+    .join("");
+  if (currentText !== annotation.base) return null;
+  return parts.map(({ node, start, end }) => isolateText(node, start, end));
+}
+
+function annotationParts(segments, annotation) {
+  const parts = [];
   let cursor = 0;
-  for (const node of nodes) {
-    const start = cursor;
-    const end = start + node.data.length;
-    ranges.push({ node, start, end });
-    cursor = end;
+  for (const segment of segments) {
+    const length = segment.end - segment.start;
+    const overlapStart = Math.max(annotation.start, cursor);
+    const overlapEnd = Math.min(annotation.end, cursor + length);
+    if (overlapStart < overlapEnd) {
+      parts.push({
+        node: segment.node,
+        start: segment.start + overlapStart - cursor,
+        end: segment.start + overlapEnd - cursor,
+      });
+    }
+    cursor += length;
   }
-  return ranges;
+  return parts;
 }
 
-function groupOperationsByNode(operations) {
-  const byNode = new Map();
-  for (const operation of operations) {
-    const entries = byNode.get(operation.node) || [];
-    entries.push(operation);
-    byNode.set(operation.node, entries);
-  }
-  return byNode;
+function isolateText(node, start, end) {
+  if (end < node.data.length) node.splitText(end);
+  return start > 0 ? node.splitText(start) : node;
 }
 
-function canApply(node, entry) {
-  return (
-    node.isConnected &&
-    entry.start >= 0 &&
-    entry.start < entry.end &&
-    entry.end <= node.data.length &&
-    node.data.slice(entry.start, entry.end) === entry.base
+function lowestCommonAncestor(nodes) {
+  if (nodes.length === 0) return null;
+  const ancestors = [];
+  for (let current = nodes[0].parentNode; current; current = current.parentNode) {
+    ancestors.push(current);
+  }
+  return ancestors.find((candidate) =>
+    nodes.every((node) => candidate === node.parentNode || candidate.contains(node)),
   );
 }
 
-module.exports = Object.freeze({ createDomAdapter });
+function childUnder(ancestor, node) {
+  let current = node;
+  while (current && current.parentNode !== ancestor) current = current.parentNode;
+  return current;
+}
+
+function siblingsBetween(first, last) {
+  const nodes = [];
+  for (let current = first; current; current = current.nextSibling) {
+    nodes.push(current);
+    if (current === last) return nodes;
+  }
+  return [];
+}
+
+module.exports = Object.freeze({ COLLECTION_SCOPES, createDomAdapter });

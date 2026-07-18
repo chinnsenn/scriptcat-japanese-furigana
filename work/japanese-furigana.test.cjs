@@ -23,7 +23,6 @@ const {
 const {
   createLruCache,
   createPersistentCache,
-  createRollingQuota,
 } = require("../src/reading/cache");
 const { calculateDockPosition, formatButtonLabel } = require("../src/page/ui");
 const { createYahooAdapter } = require("../src/reading/yahoo");
@@ -60,23 +59,12 @@ test("LRU 缓存淘汰最久未使用项并刷新命中项热度", () => {
   assert.equal(cache.size, 2);
 });
 
-test("滚动额度在请求后扣减并在 60 秒后恢复", () => {
-  const quota = createRollingQuota(3, 60_000);
-
-  assert.deepEqual(quota.snapshot(1_000), { limit: 3, used: 0, remaining: 3 });
-  quota.record(1_000);
-  quota.record(2_000);
-  assert.deepEqual(quota.snapshot(3_000), { limit: 3, used: 2, remaining: 1 });
-
-  quota.record(3_000);
-  quota.record(4_000);
-  assert.deepEqual(quota.snapshot(4_000), { limit: 3, used: 4, remaining: 0 });
-  assert.deepEqual(quota.snapshot(61_000), { limit: 3, used: 3, remaining: 0 });
-  assert.deepEqual(quota.snapshot(62_000), { limit: 3, used: 2, remaining: 1 });
-});
-
-test("按钮仅显示待标注与已完成两个状态", () => {
+test("按钮显示待标注、实时处理进度与完成状态", () => {
   assert.equal(formatButtonLabel(false), "标注读音");
+  assert.equal(
+    formatButtonLabel(false, true, { completed: 18, total: 42 }),
+    "处理中 18/42",
+  );
   assert.equal(formatButtonLabel(true), "已完成标注");
 });
 
@@ -173,6 +161,46 @@ test("Yahoo 适配器保留 JSON-RPC 错误码供自适应降级判断", async (
     assert.match(error.message, /Invalid params/);
     return true;
   });
+});
+
+test("Yahoo 适配器保留 429 状态与 Retry-After 等待时间", async () => {
+  const adapter = createYahooAdapter({
+    request(options) {
+      options.onload({
+        status: 429,
+        responseText: "Too Many Requests",
+        responseHeaders: "content-type: text/plain\nretry-after: 2",
+      });
+    },
+  });
+
+  await assert.rejects(adapter.request("漢字", "client-id"), (error) => {
+    assert.equal(error.status, 429);
+    assert.equal(error.retryAfterMs, 2_000);
+    return true;
+  });
+});
+
+test("取消 Yahoo 请求会调用 GM 任务 abort 并返回 AbortError", async () => {
+  let aborted = false;
+  const controller = new AbortController();
+  const adapter = createYahooAdapter({
+    request() {
+      return {
+        abort() {
+          aborted = true;
+        },
+      };
+    },
+  });
+
+  const pending = adapter.request("漢字", "client-id", {
+    signal: controller.signal,
+  });
+  controller.abort();
+
+  await assert.rejects(pending, (error) => error.name === "AbortError");
+  assert.equal(aborted, true);
 });
 
 test("Invalid params 时缩小文本块并保留全部可解析片段", async () => {

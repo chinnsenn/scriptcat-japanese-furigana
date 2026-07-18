@@ -1,6 +1,6 @@
 <!--
   [INPUT]: 依赖 outputs/japanese-furigana.user.js 与浏览器原生 DOM，内置 GM/Yahoo API 测试替身
-  [OUTPUT]: 提供可手动操作或通过 ?auto=1 自动运行的注音、动态内容与撤销浏览器冒烟场景
+  [OUTPUT]: 提供可手动操作或通过 ?auto=1 自动运行的注音、进度、SPA 动态内容与撤销浏览器冒烟场景
   [POS]: work 的端到端测试页面，补充纯逻辑测试无法覆盖的 DOM 行为
   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -21,7 +21,8 @@
     <script>
       const values = new Map([
         ["yahooClientId", "test-client-id"],
-        ["privacyAccepted", true],
+        ["remoteAccessOrigins", [location.origin]],
+        ["defaultScope", "page"],
       ]);
 
       globalThis.GM_getValue = (key, fallback) => values.has(key) ? values.get(key) : fallback;
@@ -59,10 +60,16 @@
           }
         }
 
-        setTimeout(() => options.onload({
+        const timer = setTimeout(() => options.onload({
           status: 200,
           response: { result: { word: words } },
         }), 10);
+        return {
+          abort() {
+            clearTimeout(timer);
+            options.onabort?.();
+          },
+        };
       };
 
       document.querySelector('[data-testid="add-dynamic"]').addEventListener("click", () => {
@@ -91,6 +98,10 @@
           await waitFor(() => document.querySelectorAll("ruby[data-scriptcat-furigana]").length > 0);
 
           document.querySelector("[data-testid='add-dynamic']").click();
+          await waitFor(() => document.querySelector("#dynamic-target ruby[data-scriptcat-furigana]"));
+
+          history.pushState({}, "", "?auto=1&route=next");
+          document.querySelector("#dynamic-target").textContent = "明日は東京へ行きます。";
           await waitFor(() => document.querySelector("#dynamic-target ruby[data-scriptcat-furigana]"));
 
           toggle.click();

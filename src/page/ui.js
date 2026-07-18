@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖浏览器 document/window、异步位置存储接口、切换回调与状态快照
- * [OUTPUT]: 对外提供双状态浮动按钮、hover 统计渲染、显隐控制和拖拽吸边行为
+ * [OUTPUT]: 对外提供含实时进度/取消的浮动按钮、韧性统计面板、显隐与拖拽吸边行为
  * [POS]: page 的界面深 Module，向 app.js 隐藏 Shadow DOM、指针手势、布局恢复和响应式定位
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -12,7 +12,8 @@ const BUTTON_HEIGHT = 38;
 const DOCK_MARGIN = 12;
 const VALID_EDGES = new Set(["left", "right", "top", "bottom"]);
 
-function formatButtonLabel(active) {
+function formatButtonLabel(active, running = false, stats = {}) {
+  if (running) return `处理中 ${stats.completed || 0}/${stats.total || 0}`;
   return active ? "已完成标注" : "标注读音";
 }
 
@@ -85,12 +86,17 @@ function createFloatingUi({
 
   function render(view) {
     state.view = view;
-    elements.button.textContent = formatButtonLabel(view.enabled);
-    elements.button.disabled = view.running;
+    elements.button.textContent = formatButtonLabel(view.enabled, view.running, view.stats);
+    elements.button.disabled = false;
     elements.button.dataset.active = String(view.enabled);
+    elements.button.dataset.running = String(view.running);
     elements.button.setAttribute(
       "aria-label",
-      view.enabled ? "已完成标注，点击移除读音" : "标注读音",
+      view.running
+        ? "正在处理，点击取消"
+        : view.enabled
+          ? "已完成标注，点击移除读音"
+          : "标注读音",
     );
     renderStats(elements.values, view.stats, view.quota);
   }
@@ -119,7 +125,7 @@ function createFloatingUi({
   bindPointerEvents(elements, window, state, finishDrag);
   window.addEventListener("resize", () => position());
   elements.button.addEventListener("click", () => {
-    if (window.performance.now() < state.suppressClickUntil || state.view.running) return;
+    if (window.performance.now() < state.suppressClickUntil) return;
     onToggle();
   });
   restorePosition(loadPosition, state, position, onWarning);
@@ -203,13 +209,18 @@ function setPanelDirection(dock, left, top) {
 
 function renderStats(values, stats, quota) {
   values.status.textContent = stats.status;
+  values.progress.textContent = `${stats.completed || 0}/${stats.total || 0}`;
   values.annotated.textContent = `${stats.annotatedCharacters} 字 / ${stats.annotations} 处`;
   values.quota.textContent = `${quota.remaining}/${quota.limit}（近 60 秒）`;
-  values.apiCalls.textContent = `${stats.apiCalls} 次（本页会话）`;
+  values.apiCalls.textContent = `${stats.apiCalls} 次（本次会话）`;
+  values.rateLimitRetries.textContent = `${stats.rateLimitRetries} 次`;
+  values.transientRetries.textContent = `${stats.transientRetries || 0} 次`;
+  values.waited.textContent = `${stats.waitedMs || 0} ms`;
   values.cacheHits.textContent = `内存 ${stats.memoryHits} / 本地 ${stats.storageHits}`;
   values.cacheMisses.textContent = `${stats.cacheMisses} 次`;
   values.analyzed.textContent = `${(stats.analyzedBytes / 1024).toFixed(1)} KB`;
   values.skipped.textContent = `${stats.skippedFragments} 个`;
+  values.failed.textContent = `${stats.failedFragments || 0} 个`;
   values.duration.textContent = `${stats.lastDurationMs} ms`;
 }
 
@@ -238,13 +249,18 @@ function appendStats(document, panel) {
   const values = {};
   const labels = {
     status: "状态",
+    progress: "处理进度",
     annotated: "已标注",
     quota: "API 额度",
     apiCalls: "API 调用",
+    rateLimitRetries: "限流重试",
+    transientRetries: "瞬时重试",
+    waited: "限流等待",
     cacheHits: "缓存命中",
     cacheMisses: "缓存未命中",
     analyzed: "已分析文本",
     skipped: "异常片段",
+    failed: "失败片段",
     duration: "最近耗时",
   };
   for (const [key, label] of Object.entries(labels)) {
@@ -268,7 +284,7 @@ const UI_STYLES = `
   button { width:104px; height:38px; padding:0 12px; touch-action:none; user-select:none; border:1px solid rgba(255,255,255,.22); border-radius:12px; color:#fff; background:#242424; box-shadow:0 8px 24px rgba(0,0,0,.24); font:600 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; cursor:grab; }
   button:hover { background:#111; }
   .dock[data-dragging="true"] button { cursor:grabbing; }
-  button:disabled { cursor:wait; opacity:.68; }
+  button[data-running="true"] { cursor:progress; opacity:.82; }
   button[data-active="true"] { background:#236746; }
   .stats { position:absolute; right:0; bottom:calc(100% + 8px); width:240px; padding:11px 13px; border:1px solid rgba(255,255,255,.12); border-radius:12px; color:#f7f7f7; background:rgba(24,24,24,.96); box-shadow:0 12px 34px rgba(0,0,0,.3); font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; opacity:0; transform:translateY(5px); pointer-events:none; transition:opacity .15s ease,transform .15s ease; }
   .dock[data-panel-y="below"] .stats { top:calc(100% + 8px); bottom:auto; }

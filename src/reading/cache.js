@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 ../text.js 的 UTF-8 长度算法与可选的 localStorage 兼容接口
- * [OUTPUT]: 对外提供固定容量 LRU、滚动窗口额度和带内容校验的持久缓存
+ * [OUTPUT]: 对外提供可清理的固定容量 LRU 与带内容校验的站点持久缓存
  * [POS]: reading 的缓存实现，向 engine.js 隐藏淘汰、过期、索引和存储异常处理
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -43,30 +43,6 @@ function createLruCache(maxEntries) {
   });
 }
 
-function createRollingQuota(limit, windowMs) {
-  if (!Number.isInteger(limit) || limit < 1 || windowMs < 1) {
-    throw new RangeError("额度与时间窗口必须为正数");
-  }
-  const timestamps = [];
-  function prune(now) {
-    const cutoff = now - windowMs;
-    while (timestamps.length > 0 && timestamps[0] <= cutoff) timestamps.shift();
-  }
-  function snapshot(now = Date.now()) {
-    prune(now);
-    const used = timestamps.length;
-    return { limit, used, remaining: Math.max(0, limit - used) };
-  }
-  return Object.freeze({
-    record(now = Date.now()) {
-      prune(now);
-      timestamps.push(now);
-      return snapshot(now);
-    },
-    snapshot,
-  });
-}
-
 function hashText(text) {
   let hash = 0x811c9dc5;
   for (let index = 0; index < text.length; index += 1) {
@@ -103,6 +79,17 @@ function createPersistentCache(storage, options = {}) {
   }
 
   return Object.freeze({
+    clear() {
+      if (!storage) return 0;
+      const keys = readIndex();
+      try {
+        for (const key of keys) storage.removeItem(key);
+        storage.removeItem(indexKey);
+        return keys.length;
+      } catch {
+        return 0;
+      }
+    },
     get(text, now = Date.now()) {
       if (!storage) return undefined;
       const key = entryKey(text);
@@ -138,5 +125,4 @@ function createPersistentCache(storage, options = {}) {
 module.exports = Object.freeze({
   createLruCache,
   createPersistentCache,
-  createRollingQuota,
 });

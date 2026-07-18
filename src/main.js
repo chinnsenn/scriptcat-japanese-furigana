@@ -18,8 +18,9 @@ const UI_HOST_ID = "scriptcat-japanese-furigana-ui";
 const RUBY_ATTRIBUTE = "data-scriptcat-furigana";
 const BLOCK_SELECTOR =
   "p,li,dd,dt,blockquote,figcaption,h1,h2,h3,h4,h5,h6,td,th";
+const MAIN_SELECTOR = "main,article,[role='main']";
 const SKIP_SELECTOR =
-  "script,style,noscript,textarea,input,button,select,option,code,pre,ruby,rt,rp,svg,canvas,[contenteditable='true'],[aria-hidden='true']";
+  "script,style,noscript,nav,header,footer,aside,form,textarea,input,button,select,option,code,pre,ruby,rt,rp,svg,canvas,[role='navigation'],[role='banner'],[role='complementary'],[contenteditable='true'],[aria-hidden='true'],[hidden]";
 
 if (typeof document !== "undefined" && typeof window !== "undefined") start();
 
@@ -36,6 +37,7 @@ function start() {
   const yahoo = createYahooAdapter({
     request:
       typeof GM_xmlhttpRequest === "function" ? GM_xmlhttpRequest : undefined,
+    onRequest: ({ text }) => platform.recordRemoteRequest(text),
   });
   const reader = createReadingEngine({
     requestWords: yahoo.request,
@@ -51,6 +53,7 @@ function start() {
     document,
     window,
     blockSelector: BLOCK_SELECTOR,
+    mainSelector: MAIN_SELECTOR,
     skipSelector: SKIP_SELECTOR,
     rubyAttribute: RUBY_ATTRIBUTE,
   });
