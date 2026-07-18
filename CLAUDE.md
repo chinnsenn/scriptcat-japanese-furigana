@@ -2,15 +2,17 @@
 JavaScript Userscript + ScriptCat GM API + Yahoo! JAPAN ルビ振り API
 
 <directory>
-outputs/ - 用户可直接安装的脚本与使用说明
-work/ - 核心逻辑的本地测试
+src/ - 可维护源码，按领域算法、缓存、平台适配、界面与编排分层
+scripts/ - 将模块源码打包为 ScriptCat 单文件的构建工具
+outputs/ - 自动生成的可安装脚本与使用说明
+work/ - 源码接口的回归测试与浏览器冒烟场景
 </directory>
 
 <config>
 README.md - 公开仓库入口，说明功能、安装、开发验证与隐私边界
 .gitignore - 排除 macOS、Node 依赖与日志文件
-outputs/japanese-furigana.user.js - 可直接导入 ScriptCat 的单文件用户脚本
-outputs/README.md - 安装、配置、隐私与限制说明
+package.json - 固定 esbuild 版本并统一 build、test、check 命令
+package-lock.json - 锁定 Node 构建依赖
 </config>
 
 ## 架构决策
@@ -22,15 +24,17 @@ outputs/README.md - 安装、配置、隐私与限制说明
 - 按钮只表达标注状态，运行指标集中在 hover 统计面板。
 - 浮动按钮以“边缘 + 相对位置”保存布局，拖动结束统一经过吸边算法，窗口缩放时重新计算坐标。
 - 所有注音使用原生 `ruby/rb/rt`，关闭时可恢复原始文本。
+- 源码以 CommonJS 深模块维护，esbuild 生成无运行时依赖的单文件安装产物。
 
 ## 开发规范
 
-- 单文件保持在 800 行内，函数聚焦单一职责。
+- 每个源码文件保持在 800 行内，函数聚焦单一职责。
 - 业务文件维护 INPUT/OUTPUT/POS 契约。
-- 修改代码后运行 `node --check` 与 `node --test`。
+- 修改代码后运行 `npm run check`，禁止直接编辑生成产物。
 
 ## 变更日志
 
+- 2026-07-18：拆分 core/cache/Yahoo/DOM/UI/main 深模块，引入可复现的 esbuild 单文件构建流。
 - 2026-07-18：补齐公开 GitHub 仓库入口与忽略规则，准备迁移至独立仓库。
 - 2026-07-18：0.2.1 缩小按钮并增加拖动吸边、位置持久化与视口自适应。
 - 2026-07-18：0.2.0 增加 localStorage 内容缓存、双状态按钮与 hover 统计面板。

@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 outputs/japanese-furigana.user.js 导出的纯逻辑测试接口与 Node 内置测试器
- * [OUTPUT]: 验证拖拽吸边、双状态按钮、localStorage 缓存、LRU 淘汰、滚动额度、日语识别、分块降级与结果映射
+ * [INPUT]: 依赖 src/core.js、src/cache.js、src/ui.js、src/yahoo.js 的稳定接口与 Node 内置测试器
+ * [OUTPUT]: 验证拖拽吸边、双状态按钮、缓存、额度、Yahoo 适配、日语识别、分块降级与结果映射
  * [POS]: work 的回归测试，约束用户脚本中与浏览器无关的核心算法
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -12,18 +12,20 @@ const test = require("node:test");
 const {
   annotationsFromYahooWords,
   buildYahooRequest,
-  calculateDockPosition,
-  createLruCache,
-  createPersistentCache,
-  createRollingQuota,
-  formatButtonLabel,
   hasKanji,
   isJapaneseText,
   mapAnnotationsToNodes,
   requestWithInvalidParamsFallback,
   splitByUtf8Bytes,
   utf8Length,
-} = require("../outputs/japanese-furigana.user.js");
+} = require("../src/core");
+const {
+  createLruCache,
+  createPersistentCache,
+  createRollingQuota,
+} = require("../src/cache");
+const { calculateDockPosition, formatButtonLabel } = require("../src/ui");
+const { createYahooAdapter } = require("../src/yahoo");
 
 test("拖动结束后吸附最近边缘并限制在视口内", () => {
   const viewport = { viewportWidth: 1_000, viewportHeight: 800 };
@@ -130,6 +132,46 @@ test("通过官方 appid 参数传递 Client ID", () => {
   assert.equal(request.headers["Content-Type"], "application/json");
   assert.equal("User-Agent" in request.headers, false);
   assert.equal(JSON.parse(request.data).params.q, "漢字");
+});
+
+test("Yahoo 适配器解析成功响应并记录一次真实调用", async () => {
+  let requestOptions;
+  let callCount = 0;
+  const adapter = createYahooAdapter({
+    request(options) {
+      requestOptions = options;
+      options.onload({
+        status: 200,
+        response: { result: { word: [{ surface: "漢字", furigana: "かんじ" }] } },
+      });
+    },
+    onRequest() {
+      callCount += 1;
+    },
+  });
+
+  const words = await adapter.request("漢字", "client-id");
+
+  assert.equal(callCount, 1);
+  assert.equal(requestOptions.timeout, 20_000);
+  assert.deepEqual(words, [{ surface: "漢字", furigana: "かんじ" }]);
+});
+
+test("Yahoo 适配器保留 JSON-RPC 错误码供自适应降级判断", async () => {
+  const adapter = createYahooAdapter({
+    request(options) {
+      options.onload({
+        status: 200,
+        response: { error: { code: -32602, message: "Invalid params" } },
+      });
+    },
+  });
+
+  await assert.rejects(adapter.request("漢字", "client-id"), (error) => {
+    assert.equal(error.code, -32602);
+    assert.match(error.message, /Invalid params/);
+    return true;
+  });
 });
 
 test("Invalid params 时缩小文本块并保留全部可解析片段", async () => {

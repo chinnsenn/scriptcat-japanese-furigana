@@ -23,13 +23,12 @@
 ## 开发与验证
 
 ```bash
-node --check outputs/japanese-furigana.user.js
-node --test work/japanese-furigana.test.cjs
+npm install
+npm run check
 ```
 
-纯逻辑测试覆盖 UTF-8 分块、读音区间映射、API 降级、滚动额度、持久缓存和按钮吸边算法。`work/smoke.html` 提供浏览器端冒烟场景。
+源码按 `core/cache/yahoo/dom/ui/main` 模块维护，esbuild 生成 `outputs/japanese-furigana.user.js` 单文件安装产物。纯逻辑测试覆盖 UTF-8 分块、读音区间映射、API 降级、滚动额度、持久缓存和按钮吸边算法；`work/smoke.html` 提供浏览器端冒烟场景。
 
 ## 隐私
 
 缓存命中的文本保留在当前网站域名的 `localStorage`。缓存缺失的可见正文会分段发送到 Yahoo! JAPAN ルビ振り API；脚本会跳过输入框、代码块、可编辑区域、隐藏区域和已有注音。
-
