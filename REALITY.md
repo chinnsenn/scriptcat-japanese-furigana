@@ -20,7 +20,7 @@
 
 ## 当前 Sprint
 
-- 🔄 Sprint 04：GitHub v1.0.1 Release 与 Greasy Fork 脚本 587522 已公开；1.0.2 Client ID 配置框已通过本地验收，等待外部发布、Webhook 配置与真实交付终验。
+- 🔄 Sprint 04：GitHub v1.0.2 Release 与 Greasy Fork 脚本 587522 已公开；Greasy Fork 已同步 1.0.2 Client ID 配置框和更新后的 Markdown 说明，等待 Webhook 配置与真实交付终验。
 
 ## 已知缺口
 
