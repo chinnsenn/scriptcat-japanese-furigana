@@ -20,8 +20,8 @@
 
 ## 当前 Sprint
 
-- 🔄 1.1.0：GitHub Release、Raw 安装脚本与版本标签已公开；Greasy Fork 脚本 587522 仍为 1.0.2，等待已登录更新或 Push Webhook 配置。
+- 🔄 1.1.0：GitHub Release、Raw 安装脚本与版本标签已公开；Greasy Fork Push Webhook 已启用并返回 HTTP 200，等待真实 Push 完成首次 1.1.0 同步。
 
 ## 已知缺口
 
-- Greasy Fork 1.1.0 发布需要已登录账户执行更新，或配置仓库 Push Webhook；当前仓库 Webhook 数量为 0。
+- Greasy Fork 1.1.0 的首次 Webhook 同步等待真实 Push 与市场版本终验。
