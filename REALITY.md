@@ -2,7 +2,7 @@
 
 ## 已验证基线
 
-- 1.1.0 本地构建、产物语法与 53 项 Node 回归测试通过。
+- 1.1.0 本地构建、产物语法与 53 项 Node 回归测试通过；GitHub Release 与安装资产已公开并通过 Actions 终验。
 - 真实 Chrome 已验证三态语言区间、混排过滤、零中文请求、动态正文、跳过统计、注音写回与完整撤销。
 - 已具备语言证据分类、上下文段落分析、两级缓存、滚动窗口限流、429 退避、站点许可、动态脏根处理和完整 ruby 移除。
 
@@ -20,8 +20,8 @@
 
 ## 当前 Sprint
 
-- 🔄 1.1.0：Japanese/Other/Ambiguous 区间识别、选择强制分析、语言跳过统计与请求审计已完成本地终验；GitHub 与 Greasy Fork 仍公开 1.0.2。
+- 🔄 1.1.0：GitHub Release、Raw 安装脚本与版本标签已公开；Greasy Fork 脚本 587522 仍为 1.0.2，等待已登录更新或 Push Webhook 配置。
 
 ## 已知缺口
 
-- GitHub Push Webhook 共享密钥的创建与持久配置等待用户确认。
+- Greasy Fork 1.1.0 发布需要已登录账户执行更新，或配置仓库 Push Webhook；当前仓库 Webhook 数量为 0。
