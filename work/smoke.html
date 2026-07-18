@@ -1,0 +1,77 @@
+<!--
+  [INPUT]: 依赖 outputs/japanese-furigana.user.js 与浏览器原生 DOM，内置 GM/Yahoo API 测试替身
+  [OUTPUT]: 提供可重复的日语页面注音、撤销和动态内容浏览器冒烟场景
+  [POS]: work 的端到端测试页面，补充纯逻辑测试无法覆盖的 DOM 行为
+  [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>日语注音冒烟测试</title>
+    <style>
+      body { max-width: 720px; margin: 60px auto; font: 20px/2 sans-serif; }
+      rt { color: #8b2f2f; font-size: .62em; }
+    </style>
+  </head>
+  <body>
+    <h1>日本語の読音テスト</h1>
+    <p id="target">今日は東京へ行きます。漢字の読み方を確認します。</p>
+    <button type="button" data-testid="add-dynamic">動的段落を追加</button>
+    <script>
+      const values = new Map([
+        ["yahooClientId", "test-client-id"],
+        ["privacyAccepted", true],
+      ]);
+
+      globalThis.GM_getValue = (key, fallback) => values.has(key) ? values.get(key) : fallback;
+      globalThis.GM_setValue = (key, value) => values.set(key, value);
+      globalThis.GM_registerMenuCommand = () => {};
+      globalThis.__furiganaRequests = [];
+      globalThis.GM_xmlhttpRequest = (options) => {
+        const query = JSON.parse(options.data).params.q;
+        globalThis.__furiganaRequests.push(query);
+        const readings = new Map([
+          ["日本語", "にほんご"],
+          ["読音", "どくおん"],
+          ["今日", "きょう"],
+          ["東京", "とうきょう"],
+          ["行", "い"],
+          ["漢字", "かんじ"],
+          ["読", "よ"],
+          ["方", "かた"],
+          ["確認", "かくにん"],
+          ["明日", "あした"],
+          ["大阪", "おおさか"],
+        ]);
+        const words = [];
+        let cursor = 0;
+        const terms = Array.from(readings.keys()).sort((a, b) => b.length - a.length);
+
+        while (cursor < query.length) {
+          const term = terms.find((candidate) => query.startsWith(candidate, cursor));
+          if (term) {
+            words.push({ surface: term, furigana: readings.get(term) });
+            cursor += term.length;
+          } else {
+            words.push({ surface: query[cursor] });
+            cursor += 1;
+          }
+        }
+
+        setTimeout(() => options.onload({
+          status: 200,
+          response: { result: { word: words } },
+        }), 10);
+      };
+
+      document.querySelector('[data-testid="add-dynamic"]').addEventListener("click", () => {
+        const paragraph = document.createElement("p");
+        paragraph.id = "dynamic-target";
+        paragraph.textContent = "明日は大阪へ行きます。";
+        document.body.append(paragraph);
+      });
+    </script>
+    <script src="/outputs/japanese-furigana.user.js"></script>
+  </body>
+</html>
