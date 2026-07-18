@@ -20,8 +20,8 @@
 
 ## 当前 Sprint
 
-- 🔄 1.1.0：GitHub Release、Raw 安装脚本与版本标签已公开；Greasy Fork Push Webhook 已启用并返回 HTTP 200，等待真实 Push 完成首次 1.1.0 同步。
+- ✅ 1.1.0：GitHub Release、Raw 安装脚本与版本标签已公开；Greasy Fork Push Webhook 已完成首次真实同步，市场安装页、CDN 产物与版本历史均验证为 1.1.0。
 
 ## 已知缺口
 
-- Greasy Fork 1.1.0 的首次 Webhook 同步等待真实 Push 与市场版本终验。
+- Greasy Fork Webhook 只匹配 Push 中实际变更的同步文件；发布提交需包含 `outputs/japanese-furigana.user.js`。
