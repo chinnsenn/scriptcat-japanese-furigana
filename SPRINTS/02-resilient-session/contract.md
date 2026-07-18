@@ -7,7 +7,7 @@
 ## Acceptance Criteria
 
 - [ ] SPA 的 `pushState`、`replaceState`、前进后退，连同无限滚动、文本改写与局部重渲染，都把受影响正文加入当前注音会话。
-- [ ] 处理按钮实时显示 `处理中 completed/total`，处理期间点击按钮会立即取消等待或远程请求，并显示已取消状态。
+- [ ] 圆形处理图标实时显示环形进度，无障碍名称包含 `completed/total`；处理期间点击会立即取消等待或远程请求。
 - [ ] 网络、超时及 5xx 瞬时错误最多指数退避重试两次；429 继续遵守 `Retry-After` 与统一额度调度。
 - [ ] 单个远程片段最终失败时，其余片段仍完成标注；失败片段可通过脚本菜单单独重试。
 - [ ] 统计面板展示处理进度、限流等待、瞬时重试、失败片段与耗时。
@@ -25,4 +25,3 @@
 - `work/reading-engine.test.cjs`
 - `work/japanese-furigana.test.cjs`
 - `work/smoke.html`
-

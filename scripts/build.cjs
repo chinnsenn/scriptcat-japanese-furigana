@@ -13,12 +13,12 @@ const packageJson = require("../package.json");
 
 const root = path.resolve(__dirname, "..");
 const metadata = `// ==UserScript==
-// @name         日语网页汉字注音
-// @name:zh-CN   日语网页汉字注音
+// @name         Japanese Furigana for Web Pages
 // @name:ja      日本語ウェブページ漢字ルビ
 // @namespace    https://github.com/chinnsenn/scriptcat-japanese-furigana
 // @version      ${packageJson.version}
-// @description  识别日语页面并使用上下文相关读音为汉字添加 ruby 注音
+// @description  Add context-aware furigana to kanji on Japanese web pages
+// @description:zh-CN 识别日语页面并使用上下文相关读音为汉字添加 ruby 注音
 // @description:ja 文脈に応じた読み方で日本語ページの漢字にルビを付けます
 // @author       chinnsenn
 // @license      MIT

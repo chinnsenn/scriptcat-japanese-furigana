@@ -6,7 +6,7 @@
 
 ## Acceptance Criteria
 
-- [ ] 包版本与 Userscript 元数据升级到 1.0.0，主页、问题反馈和直接更新地址指向正式 GitHub 仓库。
+- [ ] 包版本与 Userscript 元数据进入 1.0.x，主页、问题反馈和直接更新地址指向正式 GitHub 仓库，公开 URL 保持 ASCII。
 - [ ] Pull Request 与 main push 自动执行 `npm ci`、全量检查和生成产物一致性校验。
 - [ ] `v*` 标签只在标签与 package 版本一致时创建 GitHub Release，并附加可安装 `.user.js` 产物。
 - [ ] README 记录 Greasy Fork 导入 Raw URL、GitHub Webhook Payload URL/Secret、JSON 内容类型和仅 Push 事件的一次性配置。
@@ -23,5 +23,5 @@
 - `scripts/build.cjs`
 - `README.md`
 - `outputs/README.md`
+- `outputs/greasyfork.md`
 - `outputs/japanese-furigana.user.js`
-

@@ -1,20 +1,21 @@
 /**
  * [INPUT]: 依赖浏览器 document/window、异步位置存储接口、切换回调与状态快照
- * [OUTPUT]: 对外提供含实时进度/取消的浮动按钮、韧性统计面板、显隐与拖拽吸边行为
+ * [OUTPUT]: 对外提供纯图标圆形状态按钮、环形进度/取消、韧性统计面板、显隐与拖拽吸边行为
  * [POS]: page 的界面深 Module，向 app.js 隐藏 Shadow DOM、指针手势、布局恢复和响应式定位
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 "use strict";
 
-const BUTTON_WIDTH = 104;
-const BUTTON_HEIGHT = 38;
+const BUTTON_SIZE = 48;
 const DOCK_MARGIN = 12;
 const VALID_EDGES = new Set(["left", "right", "top", "bottom"]);
 
-function formatButtonLabel(active, running = false, stats = {}) {
-  if (running) return `处理中 ${stats.completed || 0}/${stats.total || 0}`;
-  return active ? "已完成标注" : "标注读音";
+function formatButtonAccessibleLabel(active, running = false, stats = {}) {
+  if (running) {
+    return `正在处理 ${stats.completed || 0}/${stats.total || 0}，点击取消`;
+  }
+  return active ? "注音已完成，点击移除读音" : "为网页汉字标注读音";
 }
 
 function calculateDockPosition({
@@ -70,8 +71,8 @@ function createFloatingUi({
   };
 
   function position(position = state.dockPosition) {
-    const width = elements.button.offsetWidth || BUTTON_WIDTH;
-    const height = elements.button.offsetHeight || BUTTON_HEIGHT;
+    const width = elements.button.offsetWidth || BUTTON_SIZE;
+    const height = elements.button.offsetHeight || BUTTON_SIZE;
     const maxLeft = Math.max(DOCK_MARGIN, window.innerWidth - width - DOCK_MARGIN);
     const maxTop = Math.max(DOCK_MARGIN, window.innerHeight - height - DOCK_MARGIN);
     const ratio = Math.min(1, Math.max(0, Number(position.ratio) || 0));
@@ -86,18 +87,16 @@ function createFloatingUi({
 
   function render(view) {
     state.view = view;
-    elements.button.textContent = formatButtonLabel(view.enabled, view.running, view.stats);
+    const label = formatButtonAccessibleLabel(view.enabled, view.running, view.stats);
+    const total = view.stats.total || 0;
+    const progress = total > 0 ? Math.min(100, (view.stats.completed / total) * 100) : 8;
     elements.button.disabled = false;
     elements.button.dataset.active = String(view.enabled);
     elements.button.dataset.running = String(view.running);
-    elements.button.setAttribute(
-      "aria-label",
-      view.running
-        ? "正在处理，点击取消"
-        : view.enabled
-          ? "已完成标注，点击移除读音"
-          : "标注读音",
-    );
+    elements.button.style.setProperty("--progress-offset", String(100 - progress));
+    elements.button.setAttribute("aria-label", label);
+    elements.button.setAttribute("aria-pressed", String(view.enabled));
+    elements.button.setAttribute("aria-busy", String(view.running));
     renderStats(elements.values, view.stats, view.quota);
   }
 
@@ -235,6 +234,7 @@ function createElements(document, hostId) {
   dock.className = "dock";
   button.type = "button";
   button.dataset.testid = "scriptcat-furigana-toggle";
+  button.append(createButtonIcon(document));
   panel.className = "stats";
   panel.setAttribute("role", "tooltip");
   style.textContent = UI_STYLES;
@@ -243,6 +243,38 @@ function createElements(document, hostId) {
   shadow.append(style, dock);
   document.documentElement.append(host);
   return { host, dock, button, values };
+}
+
+function createButtonIcon(document) {
+  const namespace = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(namespace, "svg");
+  svg.setAttribute("viewBox", "0 0 48 48");
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add("furigana-mark");
+  appendSvg(document, svg, "circle", {
+    class: "progress-ring",
+    cx: "24",
+    cy: "24",
+    r: "21",
+    pathLength: "100",
+  });
+  appendSvg(document, svg, "path", {
+    class: "reading-mark",
+    d: "M14 14h2m7 0h2m7 0h2",
+  });
+  appendSvg(document, svg, "path", {
+    class: "character-mark",
+    d: "M14 21h20M18 21v13m12-13v13M16 27h16M16 34h16",
+  });
+  return svg;
+}
+
+function appendSvg(document, parent, tag, attributes) {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [name, value] of Object.entries(attributes)) {
+    element.setAttribute(name, value);
+  }
+  parent.append(element);
 }
 
 function appendStats(document, panel) {
@@ -281,23 +313,32 @@ function appendStats(document, panel) {
 const UI_STYLES = `
   :host { all: initial; }
   .dock { position:fixed; right:12px; bottom:12px; z-index:2147483647; }
-  button { width:104px; height:38px; padding:0 12px; touch-action:none; user-select:none; border:1px solid rgba(255,255,255,.22); border-radius:12px; color:#fff; background:#242424; box-shadow:0 8px 24px rgba(0,0,0,.24); font:600 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; cursor:grab; }
-  button:hover { background:#111; }
+  button { --progress-offset:100; position:relative; display:grid; place-items:center; width:48px; height:48px; padding:0; touch-action:none; user-select:none; border:1px solid rgba(248,241,222,.32); border-radius:50%; color:#f4eedf; background:#252620; box-shadow:0 2px 0 rgba(255,255,255,.08) inset,0 10px 28px rgba(25,24,20,.28); cursor:grab; transition:transform .18s cubic-bezier(.22,1,.36,1),background-color .18s ease,color .18s ease,box-shadow .18s ease; }
+  button:hover { transform:scale(1.045); background:#181914; box-shadow:0 2px 0 rgba(255,255,255,.1) inset,0 13px 32px rgba(25,24,20,.34); }
+  button:focus-visible { outline:3px solid rgba(169,193,146,.72); outline-offset:3px; }
   .dock[data-dragging="true"] button { cursor:grabbing; }
-  button[data-running="true"] { cursor:progress; opacity:.82; }
-  button[data-active="true"] { background:#236746; }
-  .stats { position:absolute; right:0; bottom:calc(100% + 8px); width:240px; padding:11px 13px; border:1px solid rgba(255,255,255,.12); border-radius:12px; color:#f7f7f7; background:rgba(24,24,24,.96); box-shadow:0 12px 34px rgba(0,0,0,.3); font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; opacity:0; transform:translateY(5px); pointer-events:none; transition:opacity .15s ease,transform .15s ease; }
+  button[data-running="true"] { cursor:progress; background:#302f26; }
+  button[data-active="true"] { color:#e3f1dd; background:#27483b; box-shadow:0 2px 0 rgba(255,255,255,.1) inset,0 10px 28px rgba(24,57,44,.3); }
+  .furigana-mark { display:block; width:42px; height:42px; overflow:visible; fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; }
+  .progress-ring { opacity:0; stroke:#c7b36b; stroke-width:2; stroke-dasharray:100; stroke-dashoffset:var(--progress-offset); transform:rotate(-90deg); transform-origin:center; transition:stroke-dashoffset .2s ease,opacity .2s ease; }
+  .reading-mark { stroke-width:3.2; }
+  .character-mark { stroke-width:2.25; }
+  button[data-running="true"] .progress-ring { opacity:1; }
+  button[data-running="true"] .reading-mark { animation:reading-pulse .8s ease-in-out infinite alternate; }
+  .stats { position:absolute; right:0; bottom:calc(100% + 10px); width:240px; padding:12px 14px; border:1px solid rgba(244,238,223,.14); border-radius:16px; color:#f4eedf; background:rgba(32,33,27,.97); box-shadow:0 16px 42px rgba(25,24,20,.3); font:12px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; opacity:0; transform:translateY(6px) scale(.985); transform-origin:bottom right; pointer-events:none; transition:opacity .16s ease,transform .18s cubic-bezier(.22,1,.36,1); }
   .dock[data-panel-y="below"] .stats { top:calc(100% + 8px); bottom:auto; }
   .dock[data-panel-x="right"] .stats { left:0; right:auto; }
   .dock[data-dragging="true"] .stats { opacity:0; }
-  button:hover + .stats, button:focus-visible + .stats { opacity:1; transform:none; }
+  button:hover + .stats, button:focus-visible + .stats { opacity:1; transform:translateY(0) scale(1); }
   .row { display:flex; justify-content:space-between; gap:16px; padding:3px 0; }
-  .name { color:#aaa; }
-  .value { color:#fff; text-align:right; }
+  .name { color:#aaa997; }
+  .value { color:#f4eedf; text-align:right; }
+  @keyframes reading-pulse { from { opacity:.38; } to { opacity:1; } }
+  @media (prefers-reduced-motion:reduce) { button,.stats,.progress-ring { transition:none; } button[data-running="true"] .reading-mark { animation:none; } }
 `;
 
 module.exports = Object.freeze({
   calculateDockPosition,
   createFloatingUi,
-  formatButtonLabel,
+  formatButtonAccessibleLabel,
 });

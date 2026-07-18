@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 src/text.js、src/reading 与 src/page/ui.js 的纯算法 Interface 和 Node 内置测试器
- * [OUTPUT]: 验证拖拽吸边、双状态按钮、缓存、额度、Yahoo Adapter、日语识别、分块降级与读音对齐
- * [POS]: work 的回归测试，约束用户脚本中与浏览器无关的核心算法
+ * [INPUT]: 依赖 src/text.js、src/reading、src/page/ui.js Interface、jsdom 与 Node 内置测试器
+ * [OUTPUT]: 验证圆形图标按钮状态、拖拽吸边、缓存、额度、Yahoo Adapter、日语识别、分块降级与读音对齐
+ * [POS]: work 的共享算法与轻量 UI DOM 回归测试，补充 reading/page 深模块专项测试
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -9,6 +9,7 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const { JSDOM } = require("jsdom");
 const {
   annotationsFromYahooWords,
   buildYahooRequest,
@@ -24,24 +25,28 @@ const {
   createLruCache,
   createPersistentCache,
 } = require("../src/reading/cache");
-const { calculateDockPosition, formatButtonLabel } = require("../src/page/ui");
+const {
+  calculateDockPosition,
+  createFloatingUi,
+  formatButtonAccessibleLabel,
+} = require("../src/page/ui");
 const { createYahooAdapter } = require("../src/reading/yahoo");
 
 test("拖动结束后吸附最近边缘并限制在视口内", () => {
   const viewport = { viewportWidth: 1_000, viewportHeight: 800 };
-  const size = { width: 104, height: 38 };
+  const size = { width: 48, height: 48 };
 
   assert.deepEqual(
     calculateDockPosition({ left: 430, top: 18, ...size, ...viewport, margin: 12 }),
-    { edge: "top", left: 430, top: 12, ratio: 418 / 872 },
+    { edge: "top", left: 430, top: 12, ratio: 418 / 928 },
   );
   assert.deepEqual(
     calculateDockPosition({ left: 880, top: 400, ...size, ...viewport, margin: 12 }),
-    { edge: "right", left: 884, top: 400, ratio: 388 / 738 },
+    { edge: "right", left: 940, top: 400, ratio: 388 / 728 },
   );
   assert.deepEqual(
     calculateDockPosition({ left: -30, top: 780, ...size, ...viewport, margin: 12 }),
-    { edge: "left", left: 12, top: 750, ratio: 1 },
+    { edge: "left", left: 12, top: 740, ratio: 1 },
   );
 });
 
@@ -59,13 +64,42 @@ test("LRU 缓存淘汰最久未使用项并刷新命中项热度", () => {
   assert.equal(cache.size, 2);
 });
 
-test("按钮显示待标注、实时处理进度与完成状态", () => {
-  assert.equal(formatButtonLabel(false), "标注读音");
+test("圆形图标按钮通过无障碍名称表达待标注、进度与完成状态", () => {
+  assert.equal(formatButtonAccessibleLabel(false), "为网页汉字标注读音");
   assert.equal(
-    formatButtonLabel(false, true, { completed: 18, total: 42 }),
-    "处理中 18/42",
+    formatButtonAccessibleLabel(false, true, { completed: 18, total: 42 }),
+    "正在处理 18/42，点击取消",
   );
-  assert.equal(formatButtonLabel(true), "已完成标注");
+  assert.equal(formatButtonAccessibleLabel(true), "注音已完成，点击移除读音");
+});
+
+test("浮动按钮只渲染抽象 SVG 图标并公开实时无障碍状态", () => {
+  const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+    pretendToBeVisual: true,
+  });
+  const ui = createFloatingUi({
+    document: dom.window.document,
+    window: dom.window,
+    hostId: "test-furigana-ui",
+    loadPosition: () => ({ edge: "right", ratio: 1 }),
+    savePosition: () => {},
+    onToggle: () => {},
+  });
+
+  ui.render({
+    enabled: false,
+    running: true,
+    stats: { completed: 18, total: 42, analyzedBytes: 0 },
+    quota: { remaining: 282, limit: 300 },
+  });
+
+  const shadow = dom.window.document.querySelector("#test-furigana-ui").shadowRoot;
+  const button = shadow.querySelector("button");
+  assert.equal(button.textContent, "");
+  assert.ok(button.querySelector("svg.furigana-mark"));
+  assert.equal(button.getAttribute("aria-label"), "正在处理 18/42，点击取消");
+  assert.equal(button.getAttribute("aria-busy"), "true");
+  assert.match(shadow.querySelector("style").textContent, /border-radius:50%/);
 });
 
 test("localStorage 缓存优先返回相同文本并让变化文本失效", () => {
