@@ -17,9 +17,9 @@ const metadata = `// ==UserScript==
 // @name:ja      日本語ウェブページ漢字ルビ
 // @namespace    https://github.com/chinnsenn/scriptcat-japanese-furigana
 // @version      ${packageJson.version}
-// @description  Add context-aware furigana to kanji on Japanese web pages
-// @description:zh-CN 识别日语页面并使用上下文相关读音为汉字添加 ruby 注音
-// @description:ja 文脈に応じた読み方で日本語ページの漢字にルビを付けます
+// @description  Add context-aware furigana only to kanji in Japanese content
+// @description:zh-CN 仅识别日语内容中的汉字，并使用上下文相关读音添加 ruby 注音
+// @description:ja 日本語コンテンツの漢字だけに文脈に応じたルビを付けます
 // @author       chinnsenn
 // @license      MIT
 // @homepageURL  https://github.com/chinnsenn/scriptcat-japanese-furigana
