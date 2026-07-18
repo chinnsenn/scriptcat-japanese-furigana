@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖浏览器 document/window、异步位置存储接口、切换回调与状态快照
  * [OUTPUT]: 对外提供双状态浮动按钮、hover 统计渲染、显隐控制和拖拽吸边行为
- * [POS]: src 的界面深模块，向 main.js 隐藏 Shadow DOM、指针手势、布局恢复和响应式定位
+ * [POS]: page 的界面深 Module，向 app.js 隐藏 Shadow DOM、指针手势、布局恢复和响应式定位
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 

@@ -5,7 +5,7 @@
   "description": "为日语网页中的汉字添加上下文相关读音的 ScriptCat 用户脚本",
   "scripts": {
     "build": "node scripts/build.cjs",
-    "test": "node --test work/japanese-furigana.test.cjs",
+    "test": "node --test work/*.test.cjs",
     "check": "npm run build && node --check outputs/japanese-furigana.user.js && npm test"
   },
   "devDependencies": {

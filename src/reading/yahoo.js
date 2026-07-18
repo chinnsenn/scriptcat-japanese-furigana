@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 core.js 的 Yahoo 请求描述与 ScriptCat GM_xmlhttpRequest 实现
+ * [INPUT]: 依赖 reading/core.js 的 Yahoo 请求描述与 ScriptCat GM_xmlhttpRequest 实现
  * [OUTPUT]: 对外提供 request(text, appId) 异步接口及结构化 Yahoo 错误
- * [POS]: src 的远程服务适配器，隔离跨域请求、超时、HTTP 与 JSON-RPC 响应细节
+ * [POS]: reading 的远程 Adapter，隔离跨域请求、超时、HTTP 与 JSON-RPC 响应细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 

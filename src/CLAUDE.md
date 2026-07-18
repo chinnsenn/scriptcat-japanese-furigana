@@ -2,27 +2,28 @@
 > L2 | 父级: ../CLAUDE.md
 
 成员清单
-core.js: 纯领域算法，负责日语识别、UTF-8 分块、Yahoo 结果对齐与 DOM 区间映射
-cache.js: 缓存模块，封装内存 LRU、滚动额度与页面 localStorage 持久缓存
-yahoo.js: Yahoo 适配器，封装 ScriptCat 跨域请求、HTTP/JSON-RPC 错误和响应解析
-dom.js: DOM 适配器，封装可见文本采集、ruby 写入、撤销和页面语言判断
-ui.js: 浮动界面模块，封装双状态渲染、统计面板、拖拽吸边和位置持久化
-main.js: 浏览器入口与控制器，编排配置、缓存优先分析、并发、动态页面观察和错误反馈
+reading/: 读音分析 Module，封装缓存、Yahoo Adapter、分块降级、对齐和分析统计
+page/: 页面标注与注音会话 Module，封装 DOM、浮动界面、生命周期和动态正文
+text.js: 共享纯文本算法，负责语言识别、汉字判断与 UTF-8 安全分块
+scriptcat.js: ScriptCat Adapter，封装 GM 存储、远程授权、配置菜单和错误反馈
+main.js: 浏览器组合根，只构造 Adapter、连接 Module Interface 并启动注音会话
 CLAUDE.md: 本模块成员地图与依赖边界
 
 依赖关系
 
 ```text
-main.js -> core.js
-        -> cache.js -> core.js
-        -> yahoo.js -> core.js
-        -> dom.js -> core.js
-        -> ui.js
+main.js -> reading/engine.js -> reading/core.js -> text.js
+        |                  -> reading/cache.js -> text.js
+        -> reading/yahoo.js -> reading/core.js
+        -> page/app.js
+        -> page/dom.js -> text.js
+        -> page/ui.js
+        -> scriptcat.js
 ```
 
 开发法则
 
-- `core.js` 保持无浏览器状态，可直接由 Node 测试。
+- `text.js` 与 `reading/core.js` 保持无浏览器状态，可直接由 Node 测试。
 - 适配器隐藏平台细节，`main.js` 只消费稳定接口。
 - 依赖保持单向，兄弟模块之间不共享可变状态。
 

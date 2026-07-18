@@ -1,13 +1,13 @@
 /**
- * [INPUT]: 依赖 core.js 的 UTF-8 长度算法与可选的 localStorage 兼容接口
+ * [INPUT]: 依赖 ../text.js 的 UTF-8 长度算法与可选的 localStorage 兼容接口
  * [OUTPUT]: 对外提供固定容量 LRU、滚动窗口额度和带内容校验的持久缓存
- * [POS]: src 的缓存深模块，向 main.js 隐藏淘汰、过期、索引和存储异常处理
+ * [POS]: reading 的缓存实现，向 engine.js 隐藏淘汰、过期、索引和存储异常处理
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 "use strict";
 
-const { utf8Length } = require("./core");
+const { utf8Length } = require("../text");
 
 const DEFAULT_PREFIX = "scriptcat-furigana-v2";
 const DEFAULT_MAX_ENTRIES = 200;

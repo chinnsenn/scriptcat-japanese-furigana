@@ -10,6 +10,7 @@ work/ - 源码接口的回归测试与浏览器冒烟场景
 
 <config>
 README.md - 公开仓库入口，说明功能、安装、开发验证与隐私边界
+CONTEXT.md - 固定读音分析、页面标注、注音会话与远程授权的领域语言
 .gitignore - 排除 macOS、Node 依赖与日志文件
 package.json - 固定 esbuild 版本并统一 build、test、check 命令
 package-lock.json - 锁定 Node 构建依赖
@@ -34,6 +35,7 @@ package-lock.json - 锁定 Node 构建依赖
 
 ## 变更日志
 
+- 2026-07-18：建立领域语言，将读音分析与注音会话深化为独立 Module，入口收敛为组合根。
 - 2026-07-18：拆分 core/cache/Yahoo/DOM/UI/main 深模块，引入可复现的 esbuild 单文件构建流。
 - 2026-07-18：补齐公开 GitHub 仓库入口与忽略规则，准备迁移至独立仓库。
 - 2026-07-18：0.2.1 缩小按钮并增加拖动吸边、位置持久化与视口自适应。

@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 src/core.js、src/cache.js、src/ui.js、src/yahoo.js 的稳定接口与 Node 内置测试器
- * [OUTPUT]: 验证拖拽吸边、双状态按钮、缓存、额度、Yahoo 适配、日语识别、分块降级与结果映射
+ * [INPUT]: 依赖 src/text.js、src/reading 与 src/page/ui.js 的纯算法 Interface 和 Node 内置测试器
+ * [OUTPUT]: 验证拖拽吸边、双状态按钮、缓存、额度、Yahoo Adapter、日语识别、分块降级与读音对齐
  * [POS]: work 的回归测试，约束用户脚本中与浏览器无关的核心算法
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -12,20 +12,21 @@ const test = require("node:test");
 const {
   annotationsFromYahooWords,
   buildYahooRequest,
+  requestWithInvalidParamsFallback,
+} = require("../src/reading/core");
+const {
   hasKanji,
   isJapaneseText,
-  mapAnnotationsToNodes,
-  requestWithInvalidParamsFallback,
   splitByUtf8Bytes,
   utf8Length,
-} = require("../src/core");
+} = require("../src/text");
 const {
   createLruCache,
   createPersistentCache,
   createRollingQuota,
-} = require("../src/cache");
-const { calculateDockPosition, formatButtonLabel } = require("../src/ui");
-const { createYahooAdapter } = require("../src/yahoo");
+} = require("../src/reading/cache");
+const { calculateDockPosition, formatButtonLabel } = require("../src/page/ui");
+const { createYahooAdapter } = require("../src/reading/yahoo");
 
 test("拖动结束后吸附最近边缘并限制在视口内", () => {
   const viewport = { viewportWidth: 1_000, viewportHeight: 800 };
@@ -282,21 +283,6 @@ test("将 Yahoo 词与子词结果转换为准确文本区间", () => {
       ["振", "ふ"],
     ],
   );
-});
-
-test("把注音区间映射到单个文本节点并跳过跨节点词元", () => {
-  const first = { data: "今日は" };
-  const second = { data: "東京へ行く" };
-  const annotations = [
-    { start: 0, end: 2, base: "今日", reading: "きょう" },
-    { start: 3, end: 5, base: "東京", reading: "とうきょう" },
-    { start: 2, end: 4, base: "は東", reading: "skip" },
-  ];
-
-  assert.deepEqual(mapAnnotationsToNodes([first, second], annotations), [
-    { node: first, start: 0, end: 2, base: "今日", reading: "きょう" },
-    { node: second, start: 0, end: 2, base: "東京", reading: "とうきょう" },
-  ]);
 });
 
 test("对齐失败时保守跳过结果", () => {

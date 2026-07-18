@@ -27,7 +27,7 @@ npm install
 npm run check
 ```
 
-源码按 `core/cache/yahoo/dom/ui/main` 模块维护，esbuild 生成 `outputs/japanese-furigana.user.js` 单文件安装产物。纯逻辑测试覆盖 UTF-8 分块、读音区间映射、API 降级、滚动额度、持久缓存和按钮吸边算法；`work/smoke.html` 提供浏览器端冒烟场景。
+源码按 `reading/page/scriptcat/main` 领域 Module 维护，`main` 只负责组合 Adapter 与启动；esbuild 生成 `outputs/japanese-furigana.user.js` 单文件安装产物。测试通过 Module Interface 覆盖读音分析、注音会话、UTF-8 分块、API 降级、缓存、额度和按钮吸边；`work/smoke.html` 提供浏览器端冒烟场景。
 
 ## 隐私
 

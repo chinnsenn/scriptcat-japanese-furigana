@@ -1,13 +1,13 @@
 /**
- * [INPUT]: 依赖 core.js 的汉字与日语识别算法、浏览器 document/window 和选择器配置
- * [OUTPUT]: 对外提供 collect、apply、remove、isJapanesePage 四个页面标注接口
- * [POS]: src 的 DOM 深模块，隐藏可见性判断、TreeWalker 分组、ruby 变更与可逆恢复细节
+ * [INPUT]: 依赖 ../text.js 的汉字与日语识别算法、浏览器 document/window 和选择器配置
+ * [OUTPUT]: 对外提供 collect、apply(groups, analyses)、remove、isJapanesePage 四个页面标注接口
+ * [POS]: page 的页面标注 Adapter，隐藏可见性判断、TreeWalker 分组、区间映射、ruby 变更与恢复细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 "use strict";
 
-const { hasKanji, isJapaneseText } = require("./core");
+const { hasKanji, isJapaneseText } = require("../text");
 
 function createDomAdapter({
   document,
@@ -65,7 +65,10 @@ function createDomAdapter({
     return ruby;
   }
 
-  function apply(operations) {
+  function apply(groups, analyses) {
+    const operations = groups.flatMap((group, index) =>
+      mapAnnotationsToNodes(group.nodes, analyses[index] || []),
+    );
     const byNode = groupOperationsByNode(operations);
     let annotations = 0;
     let characters = 0;
@@ -119,6 +122,38 @@ function createDomAdapter({
   }
 
   return Object.freeze({ apply, collect, isJapanesePage, remove });
+}
+
+function mapAnnotationsToNodes(nodes, annotations) {
+  const ranges = createNodeRanges(nodes);
+  const operations = [];
+  for (const annotation of annotations) {
+    const range = ranges.find(
+      (candidate) =>
+        annotation.start >= candidate.start && annotation.end <= candidate.end,
+    );
+    if (!range) continue;
+    operations.push({
+      node: range.node,
+      start: annotation.start - range.start,
+      end: annotation.end - range.start,
+      base: annotation.base,
+      reading: annotation.reading,
+    });
+  }
+  return operations;
+}
+
+function createNodeRanges(nodes) {
+  const ranges = [];
+  let cursor = 0;
+  for (const node of nodes) {
+    const start = cursor;
+    const end = start + node.data.length;
+    ranges.push({ node, start, end });
+    cursor = end;
+  }
+  return ranges;
 }
 
 function groupOperationsByNode(operations) {

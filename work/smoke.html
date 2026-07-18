@@ -1,6 +1,6 @@
 <!--
   [INPUT]: 依赖 outputs/japanese-furigana.user.js 与浏览器原生 DOM，内置 GM/Yahoo API 测试替身
-  [OUTPUT]: 提供可重复的日语页面注音、撤销和动态内容浏览器冒烟场景
+  [OUTPUT]: 提供可手动操作或通过 ?auto=1 自动运行的注音、动态内容与撤销浏览器冒烟场景
   [POS]: work 的端到端测试页面，补充纯逻辑测试无法覆盖的 DOM 行为
   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -73,5 +73,35 @@
       });
     </script>
     <script src="/outputs/japanese-furigana.user.js"></script>
+    <script>
+      async function runAutomaticSmoke() {
+        if (!new URLSearchParams(location.search).has("auto")) return;
+        const waitFor = async (predicate, timeout = 3_000) => {
+          const startedAt = performance.now();
+          while (!predicate()) {
+            if (performance.now() - startedAt >= timeout) throw new Error("等待条件超时");
+            await new Promise((resolve) => setTimeout(resolve, 25));
+          }
+        };
+
+        try {
+          const host = document.querySelector("#scriptcat-japanese-furigana-ui");
+          const toggle = host.shadowRoot.querySelector("[data-testid='scriptcat-furigana-toggle']");
+          toggle.click();
+          await waitFor(() => document.querySelectorAll("ruby[data-scriptcat-furigana]").length > 0);
+
+          document.querySelector("[data-testid='add-dynamic']").click();
+          await waitFor(() => document.querySelector("#dynamic-target ruby[data-scriptcat-furigana]"));
+
+          toggle.click();
+          await waitFor(() => document.querySelectorAll("ruby[data-scriptcat-furigana]").length === 0);
+          document.documentElement.dataset.smokeStatus = "passed";
+        } catch (error) {
+          document.documentElement.dataset.smokeStatus = `failed:${error.message}`;
+        }
+      }
+
+      runAutomaticSmoke();
+    </script>
   </body>
 </html>
