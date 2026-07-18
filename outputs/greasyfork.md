@@ -4,7 +4,7 @@
 
 ## 使用方法
 
-1. 通过脚本菜单打开“设置 Yahoo Client ID”，输入自己的 Yahoo! JAPAN Developer Network Client ID。
+1. 通过脚本菜单打开“设置 Yahoo Client ID”，在宽型四行输入框中粘贴自己的 Yahoo! JAPAN Developer Network Client ID。长字符串会自动折行并显示字符数。
 2. 打开日语网页，点击页面边缘的圆形抽象图标。
 3. 首次远程分析时核对站点、范围、字符数与正文摘要，然后确认当前站点许可。
 4. 注音完成后再次点击图标即可完整撤销。
@@ -31,6 +31,7 @@ Yahoo 官方接口说明：[ルビ振り API V2](https://developer.yahoo.co.jp/w
 - 按站点保存正文发送许可和自动标注白名单。
 - 可清理当前站点缓存、撤销许可并查看本次真实发送摘要。
 - Client ID 始终由使用者配置和管理。
+- Client ID 配置框支持保存、清空和取消，并在浏览器缺少原生对话框能力时安全回退。
 
 ## 脚本菜单
 

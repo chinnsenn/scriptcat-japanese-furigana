@@ -1,6 +1,6 @@
 <!--
   [INPUT]: 依赖 outputs/japanese-furigana.user.js 与浏览器原生 DOM，内置 GM/Yahoo API 测试替身
-  [OUTPUT]: 提供可手动操作或通过 ?auto=1 自动运行的注音、进度、SPA 动态内容与撤销浏览器冒烟场景
+  [OUTPUT]: 提供可手动操作或通过 ?auto=1 自动运行的注音、Client ID 配置框、进度、SPA 动态内容与撤销浏览器冒烟场景
   [POS]: work 的端到端测试页面，补充纯逻辑测试无法覆盖的 DOM 行为
   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -18,6 +18,7 @@
     <h1>日本語の読音テスト</h1>
     <p id="target">今日は東京へ行きます。漢字の読み方を確認します。</p>
     <button type="button" data-testid="add-dynamic">動的段落を追加</button>
+    <button type="button" data-testid="configure-client-id">Client ID を設定</button>
     <script>
       const values = new Map([
         ["yahooClientId", "test-client-id"],
@@ -27,7 +28,10 @@
 
       globalThis.GM_getValue = (key, fallback) => values.has(key) ? values.get(key) : fallback;
       globalThis.GM_setValue = (key, value) => values.set(key, value);
-      globalThis.GM_registerMenuCommand = () => {};
+      globalThis.__furiganaMenus = new Map();
+      globalThis.GM_registerMenuCommand = (label, callback) => {
+        globalThis.__furiganaMenus.set(label, callback);
+      };
       globalThis.__furiganaRequests = [];
       globalThis.GM_xmlhttpRequest = (options) => {
         const query = JSON.parse(options.data).params.q;
@@ -77,6 +81,9 @@
         paragraph.id = "dynamic-target";
         paragraph.textContent = "明日は大阪へ行きます。";
         document.body.append(paragraph);
+      });
+      document.querySelector('[data-testid="configure-client-id"]').addEventListener("click", () => {
+        globalThis.__furiganaMenus.get("设置 Yahoo Client ID")?.();
       });
     </script>
     <script src="/outputs/japanese-furigana.user.js"></script>

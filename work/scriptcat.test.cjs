@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 src/scriptcat.js Interface 与 GM 存储、浏览器交互内存 Adapter
- * [OUTPUT]: 验证默认采集范围、远程授权复用 Client ID，以及站点正文发送许可的隔离与撤销
+ * [INPUT]: 依赖 src/scriptcat.js Interface、jsdom 与 GM 存储、浏览器交互内存 Adapter
+ * [OUTPUT]: 验证宽型 Client ID 配置框、默认采集范围、远程授权复用，以及站点正文发送许可的隔离与撤销
  * [POS]: work 的 ScriptCat Adapter 回归测试，保护用户配置和隐私确认流程
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,7 +9,58 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const { JSDOM } = require("jsdom");
 const { createScriptCatAdapter } = require("../src/scriptcat");
+
+test("Client ID 使用宽型多行配置框并显示长字符串字符数", async () => {
+  const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+    pretendToBeVisual: true,
+    url: "https://reader.example/article",
+  });
+  const values = new Map([["yahooClientId", "existing-client-id"]]);
+  const alerts = [];
+  const menus = new Map();
+  dom.window.HTMLDialogElement.prototype.showModal = function showModal() {
+    this.open = true;
+  };
+  dom.window.prompt = () => {
+    throw new Error("支持 dialog 时不应回退原生单行输入");
+  };
+  dom.window.alert = (message) => alerts.push(message);
+  const platform = createAdapter(dom.window, values, (label, callback) => {
+    menus.set(label, callback);
+  });
+  platform.registerMenus({
+    onClearCache: () => 0,
+    onRetryFailures: () => {},
+    onVisibilityChange: () => {},
+  });
+
+  const pending = menus.get("设置 Yahoo Client ID")();
+  await Promise.resolve();
+  const dialog = dom.window.document.querySelector(
+    "dialog[data-scriptcat-furigana-dialog='client-id']",
+  );
+  const shadow = dialog.querySelector("[data-dialog-root='client-id']").shadowRoot;
+  const input = shadow.querySelector("textarea");
+  const longClientId = "client-id-".repeat(24);
+  assert.equal(input.rows, 4);
+  assert.equal(input.wrap, "soft");
+  assert.equal(input.value, "existing-client-id");
+
+  input.value = longClientId;
+  input.dispatchEvent(new dom.window.Event("input"));
+  assert.equal(
+    shadow.querySelector("[data-count]").textContent,
+    `${longClientId.length} 字符`,
+  );
+  shadow.querySelector("button[type='submit']").click();
+  await pending;
+
+  assert.equal(values.get("yahooClientId"), longClientId);
+  assert.deepEqual(alerts, ["Client ID 已保存"]);
+  assert.equal(dom.window.document.querySelector("dialog"), null);
+});
 
 test("远程授权直接复用已保存且确认过的 Client ID", async () => {
   const values = new Map([

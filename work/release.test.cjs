@@ -25,10 +25,10 @@ test("1.0 发布元数据指向正式 GitHub 仓库与可安装 Raw 产物", () 
     "utf8",
   );
 
-  assert.equal(packageJson.version, "1.0.1");
+  assert.equal(packageJson.version, "1.0.2");
   assert.match(userscript, /^\/\/ @name\s+Japanese Furigana for Web Pages$/m);
   assert.doesNotMatch(userscript, /^\/\/ @name:zh-CN\s+/m);
-  assert.match(userscript, /^\/\/ @version\s+1\.0\.1$/m);
+  assert.match(userscript, /^\/\/ @version\s+1\.0\.2$/m);
   assert.match(userscript, /@homepageURL\s+https:\/\/github\.com\/chinnsenn\/scriptcat-japanese-furigana/);
   assert.match(userscript, /@updateURL\s+https:\/\/raw\.githubusercontent\.com\/chinnsenn\/scriptcat-japanese-furigana\/main\/outputs\/japanese-furigana\.user\.js/);
 });

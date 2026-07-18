@@ -1,6 +1,6 @@
 {
   "name": "scriptcat-japanese-furigana",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "为日语网页中的汉字添加上下文相关读音的 ScriptCat 用户脚本",
   "license": "MIT",

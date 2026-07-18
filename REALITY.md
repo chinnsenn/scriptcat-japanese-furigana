@@ -2,8 +2,8 @@
 
 ## 已验证基线
 
-- 1.0.1 本地构建、产物语法与 46 项 Node 回归测试通过。
-- 真实 Chrome 已验证纯图标圆形按钮、注音写回、完成状态和动态无障碍名称。
+- 1.0.2 本地构建、产物语法与 47 项 Node 回归测试通过。
+- 真实 Chrome 已验证纯图标圆形按钮、注音写回、完成状态、动态无障碍名称，以及 167 字符 Client ID 的多行折行与计数。
 - 已具备上下文段落分析、两级缓存、滚动窗口限流、429 退避、站点许可、动态脏根处理和完整 ruby 移除。
 
 ## 已完成 Sprint
@@ -20,7 +20,7 @@
 
 ## 当前 Sprint
 
-- 🔄 Sprint 04：GitHub v1.0.1 Release 与 Greasy Fork 脚本 587522 已公开；Greasy Fork 已同步 1.0.1、ASCII 英文路径和完整 Markdown 附加说明，等待 Webhook 配置与真实交付终验。
+- 🔄 Sprint 04：GitHub v1.0.1 Release 与 Greasy Fork 脚本 587522 已公开；1.0.2 Client ID 配置框已通过本地验收，等待外部发布、Webhook 配置与真实交付终验。
 
 ## 已知缺口
 
