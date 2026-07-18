@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 reading、page、scriptcat Module 工厂与浏览器/ScriptCat 全局能力
- * [OUTPUT]: 构造生产 Adapter、连接 Module Interface 并启动唯一注音会话
+ * [OUTPUT]: 构造生产 Adapter、连接三态语言过滤与读音 Module Interface 并启动唯一注音会话
  * [POS]: src 的浅组合根，有意只保留依赖装配与启动顺序
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */

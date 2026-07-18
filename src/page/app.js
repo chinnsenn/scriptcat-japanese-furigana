@@ -1,11 +1,13 @@
 /**
- * [INPUT]: 依赖 page、reader、control、platform Module Interface 与可取消、可观察导航/正文的 runtime
- * [OUTPUT]: 对外提供 start、toggle、retryFailures，持续注音并支持进度、取消与失败片段重试
- * [POS]: page 的注音会话深 Module，隐藏状态流、脏区、进度取消、局部标注、失败恢复与重试
+ * [INPUT]: 依赖 page 的三态语言区间、reader、control、platform Interface 与可取消、可观察正文的 runtime
+ * [OUTPUT]: 对外提供 start、toggle、retryFailures，只分析日语区间并统计语言跳过、进度与失败
+ * [POS]: page 的注音会话深 Module，隐藏语言过滤、状态流、脏区、取消、局部标注与失败恢复
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 "use strict";
+
+const { LANGUAGE_KIND } = require("../text");
 
 function createFuriganaApp({ page, reader, control, platform, runtime }) {
   let enabled = false;
@@ -86,9 +88,13 @@ function createFuriganaApp({ page, reader, control, platform, runtime }) {
     abortController = runtime.createAbortController();
     render();
     try {
-      const groups = retryJobs
+      const collectedGroups = retryJobs
         ? retryJobs.map((job) => job.group)
         : await collectGroups(incremental);
+      if (!retryJobs) recordLanguageStats(session, collectedGroups);
+      const groups = retryJobs
+        ? collectedGroups
+        : collectedGroups.filter(isJapaneseGroup);
       const texts = retryJobs
         ? retryJobs.map((job) => job.text)
         : groups.map((group) => group.text);
@@ -97,22 +103,24 @@ function createFuriganaApp({ page, reader, control, platform, runtime }) {
       session.completed = 0;
       session.total = texts.length;
       render();
-      const analyses = await reader.analyze(
-        texts,
-        {
-          incremental: incremental || Boolean(retryJobs),
-          scope: activeScope,
-          signal: abortController.signal,
-          onProgress(progress) {
-            session.completed = progress.completed;
-            session.total = progress.total;
-            render();
+      const analyses = texts.length > 0
+        ? await reader.analyze(
+          texts,
+          {
+            incremental: incremental || Boolean(retryJobs),
+            scope: activeScope,
+            signal: abortController.signal,
+            onProgress(progress) {
+              session.completed = progress.completed;
+              session.total = progress.total;
+              render();
+            },
+            onFragmentFailure(failure) {
+              batchFailures.push(failure);
+            },
           },
-          onFragmentFailure(failure) {
-            batchFailures.push(failure);
-          },
-        },
-      );
+        )
+        : [];
       const shiftedAnalyses = retryJobs
         ? shiftRetryAnalyses(analyses, retryJobs)
         : analyses;
@@ -156,6 +164,8 @@ function createFuriganaApp({ page, reader, control, platform, runtime }) {
     session.status = "已撤销";
     session.annotatedCharacters = 0;
     session.annotations = 0;
+    session.otherLanguageRanges = 0;
+    session.ambiguousRanges = 0;
     render();
   }
 
@@ -332,6 +342,8 @@ function createSessionStats() {
     completed: 0,
     total: 0,
     failedFragments: 0,
+    otherLanguageRanges: 0,
+    ambiguousRanges: 0,
   };
 }
 
@@ -341,6 +353,23 @@ function resetSessionStats(session) {
   session.completed = 0;
   session.total = 0;
   session.failedFragments = 0;
+  session.otherLanguageRanges = 0;
+  session.ambiguousRanges = 0;
+}
+
+function isJapaneseGroup(group) {
+  return group?.classification?.kind === LANGUAGE_KIND.JAPANESE;
+}
+
+function recordLanguageStats(session, groups) {
+  for (const group of groups) {
+    if (group?.classification?.kind === LANGUAGE_KIND.OTHER) {
+      session.otherLanguageRanges += 1;
+    }
+    if (group?.classification?.kind === LANGUAGE_KIND.AMBIGUOUS) {
+      session.ambiguousRanges += 1;
+    }
+  }
 }
 
 module.exports = Object.freeze({ createBrowserRuntime, createFuriganaApp });

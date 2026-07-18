@@ -22,6 +22,8 @@ Yahoo 官方接口说明：[ルビ振り API V2](https://developer.yahoo.co.jp/w
 ## 功能
 
 - 三种采集范围：选中文本、正文区域、整页。
+- 按元素 `lang`、页面语言、假名与上下文识别 Japanese、Other 和 Ambiguous 区间。
+- 只发送 Japanese 与用户强制选择范围，并分别显示 Other/Ambiguous 跳过数。
 - 自动跳过导航、页眉页脚、侧栏、表单、代码、可编辑区域、隐藏内容与已有 ruby。
 - 保留网页结构、样式、事件监听器和原始元素身份。
 - 跨连续内联节点词语生成一个标准 ruby。
@@ -46,7 +48,7 @@ Yahoo 官方接口说明：[ルビ振り API V2](https://developer.yahoo.co.jp/w
 
 ## 隐私
 
-缓存缺失的合格正文会分段发送到 `https://jlp.yahooapis.jp/jsonrpc`。首次发送确认展示采集范围、首片段字符数和受限摘要。真实请求审计只保留当前页面会话的有限摘要。
+缓存缺失的 Japanese 区间或用户强制选择范围会分段发送到 `https://jlp.yahooapis.jp/jsonrpc`。Other 与 Ambiguous 区间停留在当前页面；首次发送确认展示采集范围、首片段字符数和受限摘要。真实请求审计只保留当前页面会话的有限摘要。
 
 Client ID 存储于 ScriptCat 的脚本存储。站点许可、自动标注白名单和持久缓存均按 `location.origin` 隔离。仓库、Greasy Fork 页面与 GitHub Actions 均不保存用户的 Client ID。
 

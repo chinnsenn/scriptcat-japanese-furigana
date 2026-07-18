@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 读取 package.json、scripts/build.cjs 与 .github/workflows/release.yml 发布契约
- * [OUTPUT]: 验证 1.0 元数据、ASCII 发布链接、Greasy Fork 说明、CI 质量门和标签 Release 产物路径
+ * [OUTPUT]: 验证 1.1 元数据、ASCII 发布链接、Greasy Fork 说明、CI 质量门和标签 Release 产物路径
  * [POS]: work 的发布链路静态回归，阻止版本、构建产物与 GitHub 自动化静默漂移
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -19,16 +19,16 @@ const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
 const outputReadme = fs.readFileSync(path.join(root, "outputs/README.md"), "utf8");
 const greasyForkInfo = fs.readFileSync(path.join(root, "outputs/greasyfork.md"), "utf8");
 
-test("1.0 发布元数据指向正式 GitHub 仓库与可安装 Raw 产物", () => {
+test("1.1 发布元数据指向正式 GitHub 仓库与可安装 Raw 产物", () => {
   const userscript = fs.readFileSync(
     path.join(root, "outputs/japanese-furigana.user.js"),
     "utf8",
   );
 
-  assert.equal(packageJson.version, "1.0.2");
+  assert.equal(packageJson.version, "1.1.0");
   assert.match(userscript, /^\/\/ @name\s+Japanese Furigana for Web Pages$/m);
   assert.doesNotMatch(userscript, /^\/\/ @name:zh-CN\s+/m);
-  assert.match(userscript, /^\/\/ @version\s+1\.0\.2$/m);
+  assert.match(userscript, /^\/\/ @version\s+1\.1\.0$/m);
   assert.match(userscript, /@homepageURL\s+https:\/\/github\.com\/chinnsenn\/scriptcat-japanese-furigana/);
   assert.match(userscript, /@updateURL\s+https:\/\/raw\.githubusercontent\.com\/chinnsenn\/scriptcat-japanese-furigana\/main\/outputs\/japanese-furigana\.user\.js/);
 });

@@ -1,6 +1,6 @@
 <!--
   [INPUT]: 依赖 outputs/japanese-furigana.user.js 与浏览器原生 DOM，内置 GM/Yahoo API 测试替身
-  [OUTPUT]: 提供可手动操作或通过 ?auto=1 自动运行的注音、Client ID 配置框、进度、SPA 动态内容与撤销浏览器冒烟场景
+  [OUTPUT]: 提供可手动操作或通过 ?auto=1 自动运行的语言过滤、注音、动态内容、请求审计与撤销浏览器冒烟场景
   [POS]: work 的端到端测试页面，补充纯逻辑测试无法覆盖的 DOM 行为
   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -17,6 +17,9 @@
   <body>
     <h1>日本語の読音テスト</h1>
     <p id="target">今日は東京へ行きます。漢字の読み方を確認します。</p>
+    <p id="chinese-target" lang="zh-CN">中文段落只用于验证语言过滤。</p>
+    <p id="ambiguous-target" lang="">東京大学</p>
+    <p id="mixed-target"><span lang="zh">中文内容。</span><span lang="ja">日本語の記事です。</span></p>
     <button type="button" data-testid="add-dynamic">動的段落を追加</button>
     <button type="button" data-testid="configure-client-id">Client ID を設定</button>
     <script>
@@ -81,6 +84,11 @@
         paragraph.id = "dynamic-target";
         paragraph.textContent = "明日は大阪へ行きます。";
         document.body.append(paragraph);
+        const chinese = document.createElement("p");
+        chinese.id = "dynamic-chinese-target";
+        chinese.lang = "zh-CN";
+        chinese.textContent = "动态中文段落";
+        document.body.append(chinese);
       });
       document.querySelector('[data-testid="configure-client-id"]').addEventListener("click", () => {
         globalThis.__furiganaMenus.get("设置 Yahoo Client ID")?.();
@@ -103,9 +111,27 @@
           const toggle = host.shadowRoot.querySelector("[data-testid='scriptcat-furigana-toggle']");
           toggle.click();
           await waitFor(() => document.querySelectorAll("ruby[data-scriptcat-furigana]").length > 0);
+          await waitFor(() => toggle.dataset.running === "false");
+          if (document.querySelector("#chinese-target ruby")) throw new Error("中文段落产生注音");
+          if (document.querySelector("#ambiguous-target ruby")) throw new Error("歧义段落产生注音");
+          if (document.querySelector("#mixed-target span[lang='zh'] ruby")) throw new Error("混排中文产生注音");
+          if (!document.querySelector("#mixed-target span[lang='ja'] ruby")) throw new Error("混排日文缺少注音");
+          if (globalThis.__furiganaRequests.some((text) => /中文|東京大学/u.test(text))) {
+            throw new Error("请求审计发现非日语区间");
+          }
+
+          const rows = Array.from(host.shadowRoot.querySelectorAll(".row"));
+          const stat = (label) => rows.find((row) => row.firstChild.textContent === label)?.lastChild.textContent;
+          if (stat("其他语言") !== "2 个") throw new Error("其他语言统计错误");
+          if (stat("语言歧义") !== "1 个") throw new Error("语言歧义统计错误");
 
           document.querySelector("[data-testid='add-dynamic']").click();
           await waitFor(() => document.querySelector("#dynamic-target ruby[data-scriptcat-furigana]"));
+          await waitFor(() => toggle.dataset.running === "false");
+          if (document.querySelector("#dynamic-chinese-target ruby")) throw new Error("动态中文产生注音");
+          if (globalThis.__furiganaRequests.some((text) => text.includes("动态中文"))) {
+            throw new Error("动态请求审计发现中文区间");
+          }
 
           history.pushState({}, "", "?auto=1&route=next");
           document.querySelector("#dynamic-target").textContent = "明日は東京へ行きます。";

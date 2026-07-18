@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖浏览器 document/window、异步位置存储接口、切换回调与状态快照
- * [OUTPUT]: 对外提供纯图标圆形状态按钮、环形进度/取消、韧性统计面板、显隐与拖拽吸边行为
+ * [INPUT]: 依赖浏览器 document/window、异步位置存储接口、切换回调与含语言跳过数的状态快照
+ * [OUTPUT]: 对外提供纯图标圆形按钮、进度/取消、语言与韧性统计面板、显隐与拖拽吸边行为
  * [POS]: page 的界面深 Module，向 app.js 隐藏 Shadow DOM、指针手势、布局恢复和响应式定位
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -209,18 +209,20 @@ function setPanelDirection(dock, left, top) {
 function renderStats(values, stats, quota) {
   values.status.textContent = stats.status;
   values.progress.textContent = `${stats.completed || 0}/${stats.total || 0}`;
-  values.annotated.textContent = `${stats.annotatedCharacters} 字 / ${stats.annotations} 处`;
+  values.annotated.textContent = `${stats.annotatedCharacters || 0} 字 / ${stats.annotations || 0} 处`;
   values.quota.textContent = `${quota.remaining}/${quota.limit}（近 60 秒）`;
-  values.apiCalls.textContent = `${stats.apiCalls} 次（本次会话）`;
-  values.rateLimitRetries.textContent = `${stats.rateLimitRetries} 次`;
+  values.apiCalls.textContent = `${stats.apiCalls || 0} 次（本次会话）`;
+  values.rateLimitRetries.textContent = `${stats.rateLimitRetries || 0} 次`;
   values.transientRetries.textContent = `${stats.transientRetries || 0} 次`;
   values.waited.textContent = `${stats.waitedMs || 0} ms`;
-  values.cacheHits.textContent = `内存 ${stats.memoryHits} / 本地 ${stats.storageHits}`;
-  values.cacheMisses.textContent = `${stats.cacheMisses} 次`;
-  values.analyzed.textContent = `${(stats.analyzedBytes / 1024).toFixed(1)} KB`;
-  values.skipped.textContent = `${stats.skippedFragments} 个`;
+  values.cacheHits.textContent = `内存 ${stats.memoryHits || 0} / 本地 ${stats.storageHits || 0}`;
+  values.cacheMisses.textContent = `${stats.cacheMisses || 0} 次`;
+  values.analyzed.textContent = `${((stats.analyzedBytes || 0) / 1024).toFixed(1)} KB`;
+  values.otherLanguage.textContent = `${stats.otherLanguageRanges || 0} 个`;
+  values.ambiguous.textContent = `${stats.ambiguousRanges || 0} 个`;
+  values.skipped.textContent = `${stats.skippedFragments || 0} 个`;
   values.failed.textContent = `${stats.failedFragments || 0} 个`;
-  values.duration.textContent = `${stats.lastDurationMs} ms`;
+  values.duration.textContent = `${stats.lastDurationMs || 0} ms`;
 }
 
 function createElements(document, hostId) {
@@ -291,6 +293,8 @@ function appendStats(document, panel) {
     cacheHits: "缓存命中",
     cacheMisses: "缓存未命中",
     analyzed: "已分析文本",
+    otherLanguage: "其他语言",
+    ambiguous: "语言歧义",
     skipped: "异常片段",
     failed: "失败片段",
     duration: "最近耗时",

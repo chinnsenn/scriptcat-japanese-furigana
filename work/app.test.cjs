@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 src/page/app.js Interface 与 page/reader/control/platform/runtime 内存 Adapter
- * [OUTPUT]: 验证注音会话启动、标注、脏区增量处理、撤销、显隐和 Interface 调用顺序
+ * [OUTPUT]: 验证日语区间请求过滤、跳过统计、注音会话、脏区增量处理、撤销与 Interface 调用顺序
  * [POS]: work 的 app Interface 回归测试，覆盖浏览器组合根之外的状态机 Implementation
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -10,13 +10,14 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { createBrowserRuntime, createFuriganaApp } = require("../src/page/app");
+const { LANGUAGE_KIND } = require("../src/text");
 
 test("注音会话完成页面标注、处理动态正文并可完整撤销", async () => {
   const calls = { analyses: [], applies: [], removed: 0 };
   const runtime = createRuntime();
   const control = createControl();
   const page = {
-    collect: () => [{ nodes: [{ data: "漢字" }], text: "漢字" }],
+    collect: () => [languageGroup("漢字", { nodes: [{ data: "漢字" }] })],
     apply(groups, analyses) {
       calls.applies.push({ groups, analyses });
       return { annotations: 1, characters: 2 };
@@ -59,6 +60,83 @@ test("注音会话完成页面标注、处理动态正文并可完整撤销", as
   assert.equal(control.lastView.stats.status, "已撤销");
 });
 
+test("会话只分析日语区间并分别统计其他语言与歧义区间", async () => {
+  const calls = { texts: [], groups: [] };
+  const control = createControl();
+  const app = createFuriganaApp({
+    page: {
+      collect: () => [
+        languageGroup("東京へ行く"),
+        languageGroup("中文段落", { kind: LANGUAGE_KIND.OTHER }),
+        languageGroup("東京大学", { kind: LANGUAGE_KIND.AMBIGUOUS }),
+      ],
+      apply(groups) {
+        calls.groups.push(...groups);
+        return { annotations: 1, characters: 2 };
+      },
+      remove: () => {},
+      isJapanesePage: () => true,
+    },
+    reader: {
+      async analyze(texts) {
+        calls.texts.push(...texts);
+        return [[{ start: 0, end: 2, base: "東京", reading: "とうきょう" }]];
+      },
+      snapshot: () => createReadingSnapshot(),
+    },
+    control,
+    platform: createPlatform(),
+    runtime: createRuntime(),
+  });
+
+  await app.start();
+  await app.toggle();
+
+  assert.deepEqual(calls.texts, ["東京へ行く"]);
+  assert.deepEqual(calls.groups.map((group) => group.text), ["東京へ行く"]);
+  assert.equal(control.lastView.stats.otherLanguageRanges, 1);
+  assert.equal(control.lastView.stats.ambiguousRanges, 1);
+});
+
+test("仅含其他语言和歧义区间时保持零分析与零标注", async () => {
+  let analyses = 0;
+  let appliedGroups;
+  const control = createControl();
+  const app = createFuriganaApp({
+    page: {
+      collect: () => [
+        languageGroup("中文段落", { kind: LANGUAGE_KIND.OTHER }),
+        languageGroup("東京大学", { kind: LANGUAGE_KIND.AMBIGUOUS }),
+      ],
+      apply(groups) {
+        appliedGroups = groups;
+        return { annotations: 0, characters: 0 };
+      },
+      remove: () => {},
+      isJapanesePage: () => false,
+    },
+    reader: {
+      analyze: async () => {
+        analyses += 1;
+        return [];
+      },
+      snapshot: () => createReadingSnapshot(),
+    },
+    control,
+    platform: createPlatform({ isButtonForced: async () => true }),
+    runtime: createRuntime(),
+  });
+
+  await app.start();
+  await app.toggle();
+
+  assert.equal(analyses, 0);
+  assert.deepEqual(appliedGroups, []);
+  assert.equal(control.lastView.stats.annotations, 0);
+  assert.equal(control.lastView.stats.otherLanguageRanges, 1);
+  assert.equal(control.lastView.stats.ambiguousRanges, 1);
+});
+
 test("分析期间发生的正文变化会在当前批次后继续增量处理", async () => {
   const runtime = createRuntime();
   const control = createControl();
@@ -73,7 +151,7 @@ test("分析期间发生的正文变化会在当前批次后继续增量处理",
     page: {
       collect(options) {
         collectedRoots.push(options);
-        return [{ nodes: [{ data: "漢字" }], text: "漢字" }];
+        return [languageGroup("漢字", { nodes: [{ data: "漢字" }] })];
       },
       apply: () => ({ annotations: 1, characters: 2 }),
       remove: () => {},
@@ -143,7 +221,7 @@ test("处理中再次切换会通过统一信号取消且不报告失败", async
   let applies = 0;
   const app = createFuriganaApp({
     page: {
-      collect: () => [{ text: "漢字" }],
+      collect: () => [languageGroup("漢字")],
       apply: () => {
         applies += 1;
         return { annotations: 1, characters: 2 };
@@ -185,7 +263,7 @@ test("局部失败保留成功结果并可按原段落偏移单独重试", async
   const runtime = createRuntime();
   const control = createControl();
   const platform = createPlatform();
-  const groups = [{ text: "前東京後" }, { text: "大阪" }];
+  const groups = [languageGroup("前東京後"), languageGroup("大阪")];
   const applies = [];
   let attempts = 0;
   const app = createFuriganaApp({
@@ -248,7 +326,7 @@ test("白名单站点启动后自动按默认范围进入注音会话", async ()
   });
   const app = createFuriganaApp({
     page: {
-      collect: () => [{ text: "漢字" }],
+      collect: () => [languageGroup("漢字")],
       apply: () => {
         applies += 1;
         return { annotations: 1, characters: 2 };
@@ -424,5 +502,13 @@ function createReadingSnapshot(overrides = {}) {
       ...overrides,
     },
     quota: { limit: 300, used: 0, remaining: 300 },
+  };
+}
+
+function languageGroup(text, { kind = LANGUAGE_KIND.JAPANESE, ...extra } = {}) {
+  return {
+    text,
+    classification: { kind, reason: "test", tag: kind === LANGUAGE_KIND.JAPANESE ? "ja" : "" },
+    ...extra,
   };
 }

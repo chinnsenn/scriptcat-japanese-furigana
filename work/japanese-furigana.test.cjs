@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 src/text.js、src/reading、src/page/ui.js Interface、jsdom 与 Node 内置测试器
- * [OUTPUT]: 验证圆形图标按钮状态、拖拽吸边、缓存、额度、Yahoo Adapter、日语识别、分块降级与读音对齐
+ * [OUTPUT]: 验证三态语言分类、跳过统计 UI、缓存、额度、Yahoo Adapter、分块降级与读音对齐
  * [POS]: work 的共享算法与轻量 UI DOM 回归测试，补充 reading/page 深模块专项测试
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,8 +16,9 @@ const {
   requestWithInvalidParamsFallback,
 } = require("../src/reading/core");
 const {
+  LANGUAGE_KIND,
+  classifyJapaneseText,
   hasKanji,
-  isJapaneseText,
   splitByUtf8Bytes,
   utf8Length,
 } = require("../src/text");
@@ -89,7 +90,13 @@ test("浮动按钮只渲染抽象 SVG 图标并公开实时无障碍状态", () 
   ui.render({
     enabled: false,
     running: true,
-    stats: { completed: 18, total: 42, analyzedBytes: 0 },
+    stats: {
+      completed: 18,
+      total: 42,
+      analyzedBytes: 0,
+      otherLanguageRanges: 4,
+      ambiguousRanges: 2,
+    },
     quota: { remaining: 282, limit: 300 },
   });
 
@@ -100,6 +107,8 @@ test("浮动按钮只渲染抽象 SVG 图标并公开实时无障碍状态", () 
   assert.equal(button.getAttribute("aria-label"), "正在处理 18/42，点击取消");
   assert.equal(button.getAttribute("aria-busy"), "true");
   assert.match(shadow.querySelector("style").textContent, /border-radius:50%/);
+  assert.match(shadow.textContent, /其他语言4 个/);
+  assert.match(shadow.textContent, /语言歧义2 个/);
 });
 
 test("localStorage 缓存优先返回相同文本并让变化文本失效", () => {
@@ -285,13 +294,31 @@ test("网络错误直接上抛", async () => {
   );
 });
 
-test("识别包含足够假名的日语文本", () => {
-  const japanese = "今日は東京へ行きます。これは日本語の文章です。漢字の読み方をページに表示します。";
-  const chinese = "今天去东京。这是一段中文文本，其中同样包含大量汉字。";
-
-  assert.equal(isJapaneseText(japanese), true);
-  assert.equal(isJapaneseText(chinese), false);
-  assert.equal(hasKanji(japanese), true);
+test("语言证据分类器区分日语、其他语言与歧义纯汉字", () => {
+  assert.deepEqual(
+    classifyJapaneseText({ text: "東京大学", pageLanguage: "ja-JP" }),
+    { kind: LANGUAGE_KIND.JAPANESE, reason: "page-lang-ja", tag: "ja" },
+  );
+  assert.deepEqual(
+    classifyJapaneseText({ text: "中文段落", elementLanguage: "zh-CN" }),
+    { kind: LANGUAGE_KIND.OTHER, reason: "element-lang-zh", tag: "zh" },
+  );
+  assert.deepEqual(
+    classifyJapaneseText({ text: "東京へ行く", pageLanguage: "zh-CN" }),
+    { kind: LANGUAGE_KIND.JAPANESE, reason: "kana", tag: "ja" },
+  );
+  assert.deepEqual(
+    classifyJapaneseText({ text: "東京大学" }),
+    { kind: LANGUAGE_KIND.AMBIGUOUS, reason: "han-only", tag: "" },
+  );
+  assert.deepEqual(
+    classifyJapaneseText({
+      text: "中文段落",
+      elementLanguage: "zh-CN",
+      forced: true,
+    }),
+    { kind: LANGUAGE_KIND.JAPANESE, reason: "selection", tag: "ja" },
+  );
 });
 
 test("按 UTF-8 字节数分块并完整保留 Unicode 文本", () => {

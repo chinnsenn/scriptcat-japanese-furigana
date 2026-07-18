@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 package.json 的版本、src/main.js 的浏览器入口与 esbuild 打包能力
- * [OUTPUT]: 生成带 ScriptCat 元数据、1.0 动态会话能力和 L3 契约的 outputs/japanese-furigana.user.js
+ * [OUTPUT]: 生成带 ScriptCat 元数据、1.1 语言区间过滤和动态会话能力的 outputs/japanese-furigana.user.js
  * [POS]: scripts 的唯一构建入口，把可维护源码收敛为可安装单文件
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -37,7 +37,7 @@ const metadata = `// ==UserScript==
 // ==/UserScript==
 /**
  * [INPUT]: 依赖页面 DOM、ScriptCat GM_* API 与 Yahoo! JAPAN ルビ振り API
- * [OUTPUT]: 对外提供范围采集、站点授权、进度取消、韧性请求、跨节点 ruby 与 SPA 增量处理
+ * [OUTPUT]: 对外提供日语区间过滤、范围采集、站点授权、进度取消、韧性请求、跨节点 ruby 与 SPA 增量处理
  * [POS]: outputs 的自动生成安装产物，源码入口位于 src/main.js
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */`;

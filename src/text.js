@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖浏览器或 Node 提供的 TextEncoder 与标准 Unicode 正则能力
- * [OUTPUT]: 对外提供汉字判断、日语识别、UTF-8 长度和按句界安全分块算法
+ * [OUTPUT]: 对外提供统一三态日语证据分类、汉字判断、UTF-8 长度和按句界安全分块算法
  * [POS]: src 的共享纯文本 Module，被 reading 与 page 两个领域模块共同消费
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -10,17 +10,57 @@
 const API_CHUNK_BYTES = 3_000;
 const KANA_RE = /[\p{Script=Hiragana}\p{Script=Katakana}]/gu;
 const KANJI_RE = /\p{Script=Han}/u;
-const LETTER_RE = /[\p{L}]/gu;
 const SENTENCE_BREAK_RE = /[。！？!?\n]/u;
+const LANGUAGE_KIND = Object.freeze({
+  JAPANESE: "japanese",
+  OTHER: "other",
+  AMBIGUOUS: "ambiguous",
+});
 
 function hasKanji(text) {
   return KANJI_RE.test(text);
 }
 
-function isJapaneseText(text) {
-  const kanaCount = (text.match(KANA_RE) || []).length;
-  const letterCount = (text.match(LETTER_RE) || []).length;
-  return kanaCount >= 20 && kanaCount / Math.max(letterCount, 1) >= 0.05;
+function classifyJapaneseText({
+  text,
+  elementLanguage = null,
+  pageLanguage = "",
+  forced = false,
+}) {
+  if (forced) return classification(LANGUAGE_KIND.JAPANESE, "selection", "ja");
+
+  const elementTag = normalizeLanguageTag(elementLanguage);
+  if (elementTag === "ja") {
+    return classification(LANGUAGE_KIND.JAPANESE, "element-lang-ja", elementTag);
+  }
+  if (elementTag) {
+    return classification(LANGUAGE_KIND.OTHER, `element-lang-${elementTag}`, elementTag);
+  }
+  if ((text.match(KANA_RE) || []).length > 0) {
+    return classification(LANGUAGE_KIND.JAPANESE, "kana", "ja");
+  }
+  if (elementLanguage !== null) {
+    return classification(LANGUAGE_KIND.AMBIGUOUS, "han-only", "");
+  }
+
+  const pageTag = normalizeLanguageTag(pageLanguage);
+  if (pageTag === "ja") {
+    return classification(LANGUAGE_KIND.JAPANESE, "page-lang-ja", pageTag);
+  }
+  if (pageTag === "zh" || pageTag === "ko") {
+    return classification(LANGUAGE_KIND.OTHER, `page-lang-${pageTag}`, pageTag);
+  }
+  return classification(LANGUAGE_KIND.AMBIGUOUS, "han-only", "");
+}
+
+function normalizeLanguageTag(language) {
+  return typeof language === "string"
+    ? language.trim().toLowerCase().split(/[-_]/u, 1)[0]
+    : "";
+}
+
+function classification(kind, reason, tag) {
+  return { kind, reason, tag };
 }
 
 function utf8Length(text) {
@@ -62,8 +102,9 @@ function findChunkBoundary(text, start, maxBytes) {
 
 module.exports = Object.freeze({
   API_CHUNK_BYTES,
+  LANGUAGE_KIND,
+  classifyJapaneseText,
   hasKanji,
-  isJapaneseText,
   splitByUtf8Bytes,
   utf8Length,
 });
