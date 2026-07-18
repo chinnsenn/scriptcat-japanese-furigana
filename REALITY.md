@@ -20,7 +20,7 @@
 
 ## 当前 Sprint
 
-- 🔄 Sprint 04：GitHub 1.0.0 Release 与 Greasy Fork 脚本 587522 已公开；1.0.1 圆形图标、完整文档与 ASCII 发布链接已通过本地验收，等待外部同步与 Webhook 配置。
+- 🔄 Sprint 04：GitHub v1.0.1 Release 与 Greasy Fork 脚本 587522 已公开；Greasy Fork 已同步 1.0.1、ASCII 英文路径和完整 Markdown 附加说明，等待 Webhook 配置与真实交付终验。
 
 ## 已知缺口
 
