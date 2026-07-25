@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖浏览器 window 与 GM_getValue、GM_setValue、GM_registerMenuCommand Adapter
- * [OUTPUT]: 对外提供宽型 Client ID 配置框、站点许可/白名单、范围、视频防暂停、发送审计、缓存菜单、页面存储与错误反馈 Interface
- * [POS]: src 的 ScriptCat Adapter，集中用户脚本平台差异、站点隐私状态、视频站点开关与交互式配置
+ * [OUTPUT]: 对外提供宽型 Client ID 配置框、站点许可/白名单、范围、发送审计、缓存菜单、页面存储与错误反馈 Interface
+ * [POS]: src 的 ScriptCat Adapter，集中用户脚本平台差异、站点隐私状态与交互式配置
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -14,7 +14,6 @@ const STORAGE_KEYS = Object.freeze({
   buttonPosition: "buttonPosition",
   defaultScope: "defaultScope",
   autoAnnotateOrigins: "autoAnnotateOrigins",
-  videoFocusGuardOrigins: "videoFocusGuardOrigins",
 });
 
 const SCOPE_LABELS = Object.freeze({
@@ -96,13 +95,6 @@ function createScriptCatAdapter({ window, getValue, setValue, registerMenu }) {
     registerMenu("查看本次实际发送范围", showRemoteLog);
   }
 
-  function registerVideoFocusGuardMenu({ onChange = () => {} }) {
-    if (typeof registerMenu !== "function") return;
-    registerMenu("切换当前站点视频防暂停", () =>
-      toggleVideoFocusGuard(onChange).catch(reportError),
-    );
-  }
-
   async function getDefaultScope() {
     const scope = await read(STORAGE_KEYS.defaultScope, "main");
     return Object.hasOwn(SCOPE_LABELS, scope) ? scope : "main";
@@ -142,23 +134,6 @@ function createScriptCatAdapter({ window, getValue, setValue, registerMenu }) {
       enabled ? [...origins, origin] : origins.filter((item) => item !== origin),
     );
     window.alert(`${origin} 自动标注已${enabled ? "开启" : "关闭"}`);
-  }
-
-  async function isVideoFocusGuardEnabled() {
-    const origins = await readOriginList(STORAGE_KEYS.videoFocusGuardOrigins);
-    return origins.includes(currentOrigin(window));
-  }
-
-  async function toggleVideoFocusGuard(onChange) {
-    const origin = currentOrigin(window);
-    const origins = await readOriginList(STORAGE_KEYS.videoFocusGuardOrigins);
-    const enabled = !origins.includes(origin);
-    await write(
-      STORAGE_KEYS.videoFocusGuardOrigins,
-      enabled ? [...origins, origin] : origins.filter((item) => item !== origin),
-    );
-    await Promise.resolve(onChange(enabled));
-    window.alert(`${origin} 视频防暂停已${enabled ? "开启" : "关闭"}`);
   }
 
   async function clearCurrentCache(onClearCache) {
@@ -206,11 +181,9 @@ function createScriptCatAdapter({ window, getValue, setValue, registerMenu }) {
     getRemoteAccess,
     isAutoAnnotateEnabled,
     isButtonForced: () => read(STORAGE_KEYS.forceButton, false),
-    isVideoFocusGuardEnabled,
     loadButtonPosition: (fallback) => read(STORAGE_KEYS.buttonPosition, fallback),
     recordRemoteRequest,
     registerMenus,
-    registerVideoFocusGuardMenu,
     resetRemoteLog,
     reportError,
     saveButtonPosition: (position) => write(STORAGE_KEYS.buttonPosition, position),

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 src/scriptcat.js Interface、jsdom 与 GM 存储、浏览器交互内存 Adapter
- * [OUTPUT]: 验证宽型 Client ID 配置框、默认采集范围、远程授权复用、视频防暂停开关，以及站点正文发送许可的隔离与撤销
+ * [OUTPUT]: 验证宽型 Client ID 配置框、默认采集范围、远程授权复用，以及站点正文发送许可的隔离与撤销
  * [POS]: work 的 ScriptCat Adapter 回归测试，保护用户配置和隐私确认流程
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -185,38 +185,6 @@ test("自动标注白名单按站点隔离并可从菜单切换", async () => {
   assert.equal(await reader.isAutoAnnotateEnabled(), true);
   assert.equal(await news.isAutoAnnotateEnabled(), false);
   assert.deepEqual(values.get("autoAnnotateOrigins"), ["https://reader.example"]);
-});
-
-test("视频防暂停按站点隔离并可从菜单切换运行状态", async () => {
-  const values = new Map();
-  const menus = new Map();
-  const alerts = [];
-  const changes = [];
-  const readerWindow = createWindow({
-    origin: "https://reader.example",
-    alert: (message) => alerts.push(message),
-  });
-  const newsWindow = createWindow({ origin: "https://news.example" });
-  const reader = createAdapter(readerWindow, values, (label, callback) => {
-    menus.set(label, callback);
-  });
-  const news = createAdapter(newsWindow, values);
-
-  reader.registerVideoFocusGuardMenu({
-    onChange: (enabled) => changes.push(enabled),
-  });
-  await menus.get("切换当前站点视频防暂停")();
-
-  assert.equal(await reader.isVideoFocusGuardEnabled(), true);
-  assert.equal(await news.isVideoFocusGuardEnabled(), false);
-  assert.deepEqual(changes, [true]);
-  assert.deepEqual(values.get("videoFocusGuardOrigins"), ["https://reader.example"]);
-  assert.equal(alerts[0], "https://reader.example 视频防暂停已开启");
-
-  await menus.get("切换当前站点视频防暂停")();
-  assert.equal(await reader.isVideoFocusGuardEnabled(), false);
-  assert.deepEqual(changes, [true, false]);
-  assert.deepEqual(values.get("videoFocusGuardOrigins"), []);
 });
 
 test("发送审计只展示真实远程请求并可从菜单清理当前站点缓存", async () => {

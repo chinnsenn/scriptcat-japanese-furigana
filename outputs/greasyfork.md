@@ -31,7 +31,6 @@ Yahoo 官方接口说明：[ルビ振り API V2](https://developer.yahoo.co.jp/w
 - 支持双层缓存、滚动限流、429 退避、瞬时错误重试与局部失败保留。
 - 显示处理进度，并支持取消和失败片段重试。
 - 按站点保存正文发送许可和自动标注白名单。
-- 按站点保存视频防暂停白名单，启用后恢复失焦窗口内由页面脚本触发的非用户暂停。
 - 可清理当前站点缓存、撤销许可并查看本次真实发送摘要。
 - Client ID 始终由使用者配置和管理。
 - Client ID 配置框支持保存、清空和取消，并在浏览器缺少原生对话框能力时安全回退。
@@ -44,7 +43,6 @@ Yahoo 官方接口说明：[ルビ振り API V2](https://developer.yahoo.co.jp/w
 - 设置默认标注范围
 - 重试失败片段
 - 切换当前站点自动标注
-- 切换当前站点视频防暂停
 - 清理当前站点读音缓存
 - 查看本次实际发送范围
 
@@ -53,8 +51,6 @@ Yahoo 官方接口说明：[ルビ振り API V2](https://developer.yahoo.co.jp/w
 缓存缺失的 Japanese 区间或用户强制选择范围会分段发送到 `https://jlp.yahooapis.jp/jsonrpc`。Other 与 Ambiguous 区间停留在当前页面；首次发送确认展示采集范围、首片段字符数和受限摘要。真实请求审计只保留当前页面会话的有限摘要。
 
 Client ID 存储于 ScriptCat 的脚本存储。站点许可、自动标注白名单和持久缓存均按 `location.origin` 隔离。仓库、Greasy Fork 页面与 GitHub Actions 均不保存用户的 Client ID。
-
-视频防暂停白名单同样按 `location.origin` 隔离。该能力只读取页面 `<video>` 状态，不发送视频地址、标题或播放记录；用户刚操作过的暂停会保持暂停。
 
 ## 产品边界
 
