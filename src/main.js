@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 reading、page、scriptcat Module 工厂与浏览器/ScriptCat 全局能力
- * [OUTPUT]: 构造生产 Adapter、连接三态语言过滤与读音 Module Interface 并启动唯一注音会话
- * [POS]: src 的浅组合根，有意只保留依赖装配与启动顺序
+ * [INPUT]: 依赖 reading、page、media、scriptcat Module 工厂与浏览器/ScriptCat 全局能力
+ * [OUTPUT]: 构造生产 Adapter、早期安装视频焦点守卫、连接三态语言过滤与读音 Module Interface 并启动唯一注音会话
+ * [POS]: src 的浅组合根，有意只保留早期守卫、依赖装配与启动顺序
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -12,6 +12,7 @@ const { createYahooAdapter } = require("./reading/yahoo");
 const { createFuriganaApp, createBrowserRuntime } = require("./page/app");
 const { createDomAdapter } = require("./page/dom");
 const { createFloatingUi } = require("./page/ui");
+const { createVideoFocusGuard } = require("./media/guard");
 const { createScriptCatAdapter } = require("./scriptcat");
 
 const UI_HOST_ID = "scriptcat-japanese-furigana-ui";
@@ -34,6 +35,23 @@ function start() {
         ? GM_registerMenuCommand
         : undefined,
   });
+  const videoFocusGuard = createVideoFocusGuard({
+    document,
+    window,
+    isEnabled: platform.isVideoFocusGuardEnabled,
+    onWarning: (error) =>
+      console.warn("[日语网页汉字注音] 视频防暂停处理失败", error),
+  });
+  videoFocusGuard.start().catch(platform.reportError);
+  platform.registerVideoFocusGuardMenu({
+    onChange: (enabled) => videoFocusGuard.setEnabled(enabled),
+  });
+  whenDocumentReady(document, window, () => startFurigana(platform)).catch(
+    platform.reportError,
+  );
+}
+
+function startFurigana(platform) {
   const yahoo = createYahooAdapter({
     request:
       typeof GM_xmlhttpRequest === "function" ? GM_xmlhttpRequest : undefined,
@@ -70,5 +88,31 @@ function start() {
       console.warn("[日语网页汉字注音] 按钮位置处理失败", error),
   });
   app = createFuriganaApp({ page, reader, control, platform, runtime });
-  app.start().catch(platform.reportError);
+  return app.start();
+}
+
+function whenDocumentReady(document, window, callback) {
+  if (document.body) return Promise.resolve().then(callback);
+  return new Promise((resolve, reject) => {
+    let observer = null;
+    const cleanup = () => {
+      document.removeEventListener("DOMContentLoaded", done, true);
+      window.removeEventListener("load", done, true);
+      observer?.disconnect();
+    };
+    const done = () => {
+      if (!document.body) return;
+      cleanup();
+      Promise.resolve()
+        .then(callback)
+        .then(resolve, reject);
+    };
+    document.addEventListener("DOMContentLoaded", done, true);
+    window.addEventListener("load", done, true);
+    if (typeof window.MutationObserver === "function" && document.documentElement) {
+      observer = new window.MutationObserver(done);
+      observer.observe(document.documentElement, { childList: true });
+    }
+    done();
+  });
 }
