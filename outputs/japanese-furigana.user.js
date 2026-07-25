@@ -2,7 +2,7 @@
 // @name         Japanese Furigana for Web Pages
 // @name:ja      日本語ウェブページ漢字ルビ
 // @namespace    https://github.com/chinnsenn/scriptcat-japanese-furigana
-// @version      1.1.0
+// @version      1.2.0
 // @description  Add context-aware furigana only to kanji in Japanese content
 // @description:zh-CN 仅识别日语内容中的汉字，并使用上下文相关读音添加 ruby 注音
 // @description:ja 日本語コンテンツの漢字だけに文脈に応じたルビを付けます
