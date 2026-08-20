@@ -22,7 +22,21 @@ const MAIN_SELECTOR = "main,article,[role='main']";
 const SKIP_SELECTOR =
   "script,style,noscript,nav,header,footer,aside,form,textarea,input,button,select,option,code,pre,ruby,rt,rp,svg,canvas,[role='navigation'],[role='banner'],[role='complementary'],[contenteditable='true'],[aria-hidden='true'],[hidden]";
 
-if (typeof document !== "undefined" && typeof window !== "undefined") start();
+if (
+  typeof document !== "undefined" &&
+  typeof window !== "undefined" &&
+  shouldStart({ document, window, hostId: UI_HOST_ID })
+) {
+  start();
+}
+
+function shouldStart({ document, window, hostId }) {
+  try {
+    return window.top === window && !document.getElementById(hostId);
+  } catch {
+    return false;
+  }
+}
 
 function start() {
   const platform = createScriptCatAdapter({
@@ -72,3 +86,5 @@ function start() {
   app = createFuriganaApp({ page, reader, control, platform, runtime });
   app.start().catch(platform.reportError);
 }
+
+module.exports = Object.freeze({ shouldStart });

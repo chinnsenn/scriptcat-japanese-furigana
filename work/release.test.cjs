@@ -31,6 +31,7 @@ test("1.1 发布元数据指向正式 GitHub 仓库与可安装 Raw 产物", () 
   assert.match(userscript, /^\/\/ @version\s+1\.1\.0$/m);
   assert.match(userscript, /@homepageURL\s+https:\/\/github\.com\/chinnsenn\/scriptcat-japanese-furigana/);
   assert.match(userscript, /@updateURL\s+https:\/\/raw\.githubusercontent\.com\/chinnsenn\/scriptcat-japanese-furigana\/main\/outputs\/japanese-furigana\.user\.js/);
+  assert.match(userscript, /^\/\/ @noframes$/m);
 });
 
 test("公开文档与元数据只使用 ASCII URL 并提供 Greasy Fork 页面说明", () => {

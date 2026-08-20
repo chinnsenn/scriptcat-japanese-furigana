@@ -28,6 +28,7 @@ const metadata = `// ==UserScript==
 // @updateURL    https://raw.githubusercontent.com/chinnsenn/scriptcat-japanese-furigana/main/outputs/japanese-furigana.user.js
 // @match        http://*/*
 // @match        https://*/*
+// @noframes
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
